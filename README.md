@@ -1,3 +1,4 @@
 # Simulation Branch of MosaiCatcher
 
-This branch is only meant to test the performance of MC on simulated SV calls.
+This branch was moved to its own repository: https://github.com/friendsofstrandseq/simulations
+
