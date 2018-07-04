@@ -73,7 +73,6 @@ addHaploCountProbs <- function(probs, haploCounts, alpha)
                prob=as.matrix(probs.new[,.(multi.p.W.h1, multi.p.C.h1, multi.p.W.h2, multi.p.C.h2)]))]
   
   # merge probs.new and probs
-  # the merging does not work! double check later
   probs <- merge(probs, 
                  probs.new[, .(chrom, start, end, cell, sample, haplotype, multi.prob)],
                  by=c("chrom", "start", "end", "cell", "sample", "haplotype"),
