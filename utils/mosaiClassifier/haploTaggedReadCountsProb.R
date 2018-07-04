@@ -1,6 +1,9 @@
-install.packages("mc2d")
-library(mc2d)
-library(data.table)
+suppressMessages(library(mc2d))
+suppressMessages(library(dplyr))
+suppressMessages(library(data.table))
+suppressMessages(library(assertthat))
+source("utils/mosaiClassifier/getDispParAndSegType.R")
+
 
 alpha = 0.05
 dir <- "/home/maryam/research/hackathons/C7_3rd_July/ftp-exchange.embl.de/pub/exchange/meiers/outgoing/sv_probabilities/C7_data/100000_fixed_norm.many"
@@ -71,7 +74,8 @@ addHaploCountProbs <- function(probs, haploCounts, alpha)
   
   # merge probs.new and probs
   # the merging does not work! double check later
-  probs <- merge(probs, probs.new,
+  probs <- merge(probs, 
+                 probs.new[, .(chrom, start, end, cell, sample, haplotype, multi.prob)],
                  by=c("chrom", "start", "end", "cell", "sample", "haplotype"),
                  all.x = T,
                  allow.cartesian = T)
