@@ -25,7 +25,7 @@ makeSVCallSimple <- function(probs, llr_thr = 1, use.pop.priors = FALSE, use.hap
   assert_that("nb_hap_pp" %in% colnames(probs)) %>% invisible
 
   # kick out the segments with a large fraction of blacklisted bins
-  probs <- probs[class != "?" & num_bins*bin.size/(end-start) >= minFrac.used.bins]
+  probs <- probs[num_bins*bin.size/(end-start) >= minFrac.used.bins]
 
   setkey(probs, chrom, start, end, sample, cell)
 
