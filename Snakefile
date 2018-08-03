@@ -493,6 +493,8 @@ rule mosaiClassifier_make_call:
         probs = 'haplotag/table/{sample}/haplotag-likelihoods.{windows}.{bpdens}.Rdata'
     output:
         "sv_calls/{sample}/{windows}.{bpdens}/simpleCalls_llr{llr}_poppriors{pop_priors,(TRUE|FALSE)}_haplotags{use_haplotags,(TRUE|FALSE)}_gtcutoff{gtcutoff,[0-9\\.]+}_regfactor{regfactor,[0-9]+}.txt"
+    params:
+        minFrac_used_bins = 0.8
     log:
         "log/mosaiClassifier_make_call/{sample}/{windows}.{bpdens}.llr{llr}.poppriors{pop_priors}.haplotags{use_haplotags}.gtcutoff{gtcutoff}.regfactor{regfactor}.log"
     script:
