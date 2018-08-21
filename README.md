@@ -44,9 +44,12 @@ the following steps are shared by all of them:
 
    ```
    cd pipeline
-   mkdir -p bam/NA12878
-   cp /path/to/my/cells/*.bam     bam/NA12878/
-   cp /path/to/my/cells/*.bam.bai bam/NA12878
+   mkdir -p bam/NA12878/all
+   mkdir -p bam/NA12878/selected
+   cp /path/to/my/all_cells/*.bam     bam/NA12878/all
+   cp /path/to/my/all_cells/*.bam.bai bam/NA12878/all
+   cp /path/to/my/selected_cells/*.bam     bam/NA12878/selected
+   cp /path/to/my/selected_cells/*.bam.bai bam/NA12878/selected
    ```
 
 4. **BAM requirements.** Make sure that all BAM files belonging to the same sample
