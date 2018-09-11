@@ -42,6 +42,9 @@ METHODS = [
     "simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.05_regfactor6",
 ]
 
+BPDENS = [
+	"selected_j{}_s{}".format(joint, single) for joint in [0.5,0.1,0.01] for single in [1.0,0.5,0.1]
+]
 
 singularity: "docker://smei/mosaicatcher-pipeline:v0.1"
 
@@ -67,19 +70,24 @@ rule all:
                sample = SAMPLE,
                chrom = config["chromosomes"],
                window = [100000],
-               bpdens = ["selected"],
+               bpdens = BPDENS,
                method = METHODS),
         expand("ploidy/{sample}/ploidy.{chrom}.txt", sample = SAMPLES, chrom = config["chromosomes"]),
         expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_consistency/{method}.consistency-barplot-{plottype}.pdf",
                sample = SAMPLES,
                window = [100000],
-               bpdens = ["selected"],
+               bpdens = BPDENS,
                method = METHODS,
                plottype = ["byaf","bypos"]),
         expand("halo/{sample}/{window}_{suffix}.json.gz",
                sample = SAMPLES,
                window = [100000],
-               suffix = ["fixed", "fixed_norm"])
+               suffix = ["fixed", "fixed_norm"]),
+        expand("stats/{sample}/{window}_fixed_norm.{bpdens}/{method}.tsv",
+               sample = SAMPLES,
+               window = [100000],
+               bpdens = BPDENS,
+               method = METHODS),
 
 
 ################################################################################
@@ -248,7 +256,7 @@ rule plot_SV_calls:
         strand = "strand_states/{sample}/final.txt",
         segments = "segmentation2/{sample}/{windows}.{bpdens}.txt"
     output:
-        "sv_calls/{sample}/{windows}.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf"
+        "sv_calls/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_calls/{method}.{chrom}.pdf"
     log:
         "log/plot_SV_calls/{sample}/{windows}.{bpdens}.{method}.{chrom}.log"
     params:
@@ -272,7 +280,7 @@ rule plot_SV_calls_simulated:
         segments = "segmentation2/simulation{seed}-{window}/{window}_fixed.{bpdens}.txt",
         truth  = "simulation/variants/genome{seed}-{window}.txt"
     output:
-        "sv_calls/simulation{seed}-{window}/{window}_fixed.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf"
+        "sv_calls/simulation{seed}-{window}/{window}_fixed.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_calls/{method}.{chrom}.pdf"
     log:
         "log/plot_SV_calls_simulated/simulation{seed}-{window}/{window}_fixed.{bpdens}.{method}.{chrom}.log"
     params:
@@ -294,8 +302,8 @@ rule plot_SV_consistency_barplot:
     input:
         sv_calls  = "sv_calls/{sample}/{windows}.{bpdens}/{method}.txt",
     output:
-        barplot_bypos = "sv_calls/{sample}/{windows}.{bpdens}/plots/sv_consistency/{method}.consistency-barplot-bypos.pdf",
-        barplot_byaf = "sv_calls/{sample}/{windows}.{bpdens}/plots/sv_consistency/{method}.consistency-barplot-byaf.pdf",
+        barplot_bypos = "sv_calls/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_consistency/{method}.consistency-barplot-bypos.pdf",
+        barplot_byaf = "sv_calls/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_consistency/{method}.consistency-barplot-byaf.pdf",
     log:
         "log/plot_SV_consistency/{sample}/{windows}.{bpdens}.{method}.log"
     script:
@@ -501,15 +509,15 @@ rule segmentation_selection:
         singleseg=lambda wc: ["segmentation-per-cell/{}/{}/{}_{}.txt".format(wc.sample, cell, wc.window, wc.file_name) for cell in CELL_PER_SAMPLE[wc.sample]],
         info="counts/{sample}/{window}_{file_name}.info",
     output:
-        jointseg="segmentation2/{sample}/{window,[0-9]+}_{file_name}.selected.txt",
-        strand_states="strand_states/{sample}/{window,[0-9]+}_{file_name}.intitial_strand_state",
+        jointseg="segmentation2/{sample}/{window,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.txt",
+        strand_states="strand_states/{sample}/{window,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.intitial_strand_state",
     log:
-        "log/segmentation_selection/{sample}/{window}_{file_name}.log"
+        "log/segmentation_selection/{sample}/{window}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.log"
     params:
         cellnames = lambda wc: ",".join(cell for cell in CELL_PER_SAMPLE[wc.sample]),
         sce_min_distance = 500000,
     shell:
-        "./utils/detect_strand_states.py --sce_min_distance {params.sce_min_distance} --output_jointseg {output.jointseg} --output_strand_states {output.strand_states} --samplename {wildcards.sample} --cellnames {params.cellnames} {input.info} {input.counts} {input.jointseg} {input.singleseg} > {log} 2>&1"
+        "./utils/detect_strand_states.py --sce_min_distance {params.sce_min_distance} --min_diff_jointseg {wildcards.min_diff_jointseg} --min_diff_singleseg {wildcards.min_diff_singleseg} --output_jointseg {output.jointseg} --output_strand_states {output.strand_states} --samplename {wildcards.sample} --cellnames {params.cellnames} {input.info} {input.counts} {input.jointseg} {input.singleseg} > {log} 2>&1"
 
 
 ################################################################################
@@ -524,7 +532,7 @@ rule plot_heatmap:
         info     = "counts/{sample}/{windows}.info",
         bamNames = "sv_probabilities/{sample}/{windows}.{bpdens}/bamNames.txt"
     output:
-        "sv_probabilities/{sample}/{windows}.{bpdens}/final_plots/heatmapPlots.pdf"
+        "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/final_plots/heatmapPlots.pdf"
     params:
         r_package_path = "utils/R-packages2"
     log:
@@ -566,7 +574,7 @@ rule mosaiClassifier_make_call_biallelic:
     input:
         probs = "sv_probabilities/{sample}/{windows}.{bpdens}/probabilities.Rdata"
     output:
-        "sv_calls/{sample}/{windows}.{bpdens}/biAllelic_llr{llr}.txt"
+        "sv_calls/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biAllelic_llr{llr}.txt"
     log:
         "log/mosaiClassifier_make_call_biallelic/{sample}/{windows}.{bpdens}.{llr}.log"
     script:
@@ -616,12 +624,12 @@ if config["manual_segments"]:
 
 rule determine_initial_strand_states:
     input:
-        "strand_states/{sample}/100000_fixed_norm.intitial_strand_state"
+        "strand_states/{sample}/100000_fixed_norm.selected_j0.5_s1.0.intitial_strand_state"
     output:
         "strand_states/{sample}/intitial_strand_state"
     shell:
         """
-        cd strand_states/{wildcards.sample} && ln -s 100000_fixed_norm.intitial_strand_state intitial_strand_state && cd ../..
+        cd strand_states/{wildcards.sample} && ln -s 100000_fixed_norm.selected_j0.5_s1.0.intitial_strand_state intitial_strand_state && cd ../..
         """
 
 # Strandphaser needs a different input format which contains the path names to
@@ -793,7 +801,7 @@ rule create_haplotag_segment_bed:
     input:
         segments="segmentation2/{sample}/{size}{what}.{bpdens}.txt",
     output:
-        bed="haplotag/bed/{sample}/{size,[0-9]+}{what}.{bpdens}.bed",
+        bed="haplotag/bed/{sample}/{size,[0-9]+}{what}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.bed",
     shell:
         "awk 'BEGIN {{s={wildcards.size};OFS=\"\\t\"}} $2!=c {{prev=0}} NR>1 {{print $2,prev*s+1,($3+1)*s; prev=$3+1; c=$2}}' {input.segments} > {output.bed}"
 
@@ -803,7 +811,7 @@ rule create_haplotag_table:
         bai='haplotag/bam/{sample}/{cell}.bam.bai',
         bed = "haplotag/bed/{sample}/{windows}.{bpdens}.bed"
     output:
-        tsv='haplotag/table/{sample}/by-cell/haplotag-counts.{cell}.{windows}.{bpdens}.tsv'
+        tsv='haplotag/table/{sample}/by-cell/haplotag-counts.{cell}.{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.tsv'
     log:
         "log/create_haplotag_table/{sample}.{cell}.{windows}.{bpdens}.log"
     script:
@@ -813,7 +821,7 @@ rule merge_haplotag_tables:
     input:
         tsvs=lambda wc: ['haplotag/table/{}/by-cell/haplotag-counts.{}.{}.{}.tsv'.format(wc.sample,cell,wc.windows,wc.bpdens) for cell in BAM_PER_SAMPLE[wc.sample]],
     output:
-        tsv='haplotag/table/{sample}/full/haplotag-counts.{windows}.{bpdens}.tsv'
+        tsv='haplotag/table/{sample}/full/haplotag-counts.{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.tsv'
     shell:
         '(head -n1 {input.tsvs[0]} && tail -q -n +2 {input.tsvs}) > {output.tsv}'
 
@@ -822,7 +830,7 @@ rule create_haplotag_likelihoods:
     input:
         haplotag_table='haplotag/table/{sample}/full/haplotag-counts.{windows}.{bpdens}.tsv',
         sv_probs_table = 'sv_probabilities/{sample}/{windows}.{bpdens}/probabilities.Rdata',
-    output: 'haplotag/table/{sample}/haplotag-likelihoods.{windows}.{bpdens}.Rdata'
+    output: 'haplotag/table/{sample}/haplotag-likelihoods.{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.Rdata'
     log:
         "log/create_haplotag_likelihoods/{sample}.{windows}.{bpdens}.log"
     script:
@@ -924,3 +932,36 @@ rule split_external_snv_calls:
         > {log} 2>&1
         """
 
+
+################################################################################
+# Summary statistics on sv calls                                               #
+################################################################################
+
+
+rule summary_statistics:
+	input:
+		segmentation = 'segmentation2/{sample}/{windows}.{bpdens}.txt',
+		strandstates = 'strand_states/{sample}/{windows}.{bpdens}.intitial_strand_state',
+		sv_calls = 'sv_calls/{sample}/{windows}.{bpdens}/{method}.txt',
+	output:
+		tsv = 'stats/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/{method}.tsv',
+	log:
+		'log/summary_statistics/{sample}/{windows}.{bpdens}/{method}.log'
+	run:
+		p = []
+		try:
+			f = config["ground_truth_clonal"][wildcards.sample]
+			if len(f) > 0:
+				p.append('--true-events-clonal')
+				p.append(f)
+		except KeyError:
+			pass
+		try:
+			f = config["ground_truth_single_cell"][wildcards.sample]
+			if len(f) > 0:
+				p.append('--true-events-single-cell')
+				p.append(f)
+		except KeyError:
+			pass
+		additional_params = ' '.join(p)
+		shell('utils/callset_summary_stats.py --segmentation {input.segmentation} --strandstates {input.strandstates} {additional_params} {input.sv_calls}  > {output.tsv}')
