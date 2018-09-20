@@ -29,7 +29,7 @@
         "many"      : 0.6
     },
 
-    "manual_segments" : true,
+    "manual_segments" : false,
 
     "paired_end"    : true,
 
