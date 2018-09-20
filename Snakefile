@@ -697,7 +697,7 @@ rule compress_vcf:
     output:
         vcf="{file}.vcf.gz",
     log:
-        "log/compress_vcf/{file}.log"
+        "{file}_compress_vcf.log"
     shell:
         "(cat {input.vcf} | bgzip > {output.vcf}) > {log} 2>&1"
 
