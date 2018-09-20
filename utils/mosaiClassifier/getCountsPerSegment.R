@@ -103,7 +103,7 @@ addCountsPerSegment2 <- function(df, count_tab) {
 
 
 
-addCountsPerSegment <- function(df, counts) {
+addCountsPerSegment <- function(df, counts, manual.segs=FALSE) {
 
   assert_that(is.data.table(df))
   assert_that("sample" %in% colnames(df),
@@ -130,7 +130,9 @@ addCountsPerSegment <- function(df, counts) {
   count_tab[, bin := 1:.N, by = .(sample, cell, chrom)]
   # Merge count_tab and segments by their bin IDs
   count_tab <- merge(count_tab, all_segs, by = c("chrom","bin"), all.x = T)
-  assert_that(all(!is.na(count_tab$from)), msg = "Segments should cover all bins") %>% invisible
+  if (!manual.segs) {
+    assert_that(all(!is.na(count_tab$from)), msg = "Segments should cover all bins") %>% invisible
+  }
 
   # Now summarize counts and expectation per cell and segment
   count_tab <- count_tab[,

@@ -23,6 +23,8 @@
         "many"      : 0.6
     },
 
+    "manual_segments" : true,
+
     "paired_end"    : true,
 
     "simulation_min_vaf" : 0.01,
