@@ -21,7 +21,6 @@ for s in SAMPLES:
     print("  {}:\t{} cells\t {} selected cells".format(s, len(ALLBAMS_PER_SAMPLE[s]), len(BAM_PER_SAMPLE[s])))
 
 
-
 import os.path
 
 # Current state of the pipeline:
@@ -552,10 +551,12 @@ rule mosaiClassifier_make_call:
 
 rule mosaiClassifier_calc_probs:
     input:
-        counts = "counts/{sample}/{windows}.txt.gz",
-        info   = "counts/{sample}/{windows}.info",
+        counts = "counts/{sample}/{window}_fixed_norm.txt.gz",
+        info   = "counts/{sample}/{window}_fixed_norm.info",
         states = "strand_states/{sample}/final.txt",
         bp     = "segmentation2/{sample}/{windows}.{bpdens}.txt"
+    params:
+        manual_segs = config["manual_segments"]
     output:
         output = "sv_probabilities/{sample}/{windows}.{bpdens}/probabilities.Rdata"
     log:
@@ -573,6 +574,26 @@ rule mosaiClassifier_make_call_biallelic:
     script:
         "utils/mosaiClassifier_call_biallelic.snakemake.R"
 
+
+################################################################################
+# Conditional SV classification for the case of manual segments                #
+################################################################################
+
+if config["manual_segments"]:
+    rule mosaiClassifier_calc_probs_manual_segs:
+        input:
+            counts = expand("counts/{{sample}}/{window}_fixed_norm.txt.gz", window=100000),
+            info   = expand("counts/{{sample}}/{window}_fixed_norm.info", window=100000),
+            states = "strand_states/{sample}/final.txt",
+            bp     = "manaul_segmentation/{sample}.bed"
+        output: "manaul_segmentation/{sample}/sv_probabilities.Rdata"
+        params:
+            manual_segs = config["manual_segments"],
+            window_size = 100000
+        log:
+            "log/mosaiClassifier_calc_probs_manual_segments_{sample}.log"
+        script:
+            "utils/mosaiClassifier.snakemake.R"
 
 
 ################################################################################
