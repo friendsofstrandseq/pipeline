@@ -551,14 +551,12 @@ rule mosaiClassifier_make_call:
 
 rule mosaiClassifier_calc_probs:
     input:
-        counts = "counts/{sample}/{window}_fixed_norm.txt.gz",
-        info   = "counts/{sample}/{window}_fixed_norm.info",
-        states = "strand_states/{sample}/final.txt",
+        counts = "counts/{sample}/{windows}.txt.gz",
+        info   = "counts/{sample}/{windows}.info",
+        states = "strand_states/{sample}/{windows}.{bpdens}/final.txt",
         bp     = "segmentation2/{sample}/{windows}.{bpdens}.txt"
-    params:
-        manual_segs = config["manual_segments"]
     output:
-        output = "sv_probabilities/{sample}/{windows}.{bpdens}/probabilities.Rdata"
+        output = "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/probabilities.Rdata"
     log:
         "log/mosaiClassifier_calc_probs/{sample}/{windows}.{bpdens}.log"
     script:
