@@ -1,6 +1,8 @@
 suppressMessages(library(data.table))
 suppressMessages(library(assertthat))
+suppressMessages(library(stringr))
 source("utils/mosaiClassifier/mosaiClassifier.R")
+source("utils/mosaiClassifier/haploAndGenoName.R")
 
 
 #' Derives SV type with highest probability according in each cell and segment.
@@ -109,4 +111,41 @@ forceBiallelic <- function(probs, penalize_factor = 0.1)
   }
   
   probs <- apply_prior(probs, penalize_factor)
+}
+
+#' Computes CN likelihoods and Derives CN with highest probability according in each cell and segment.
+#' Output is a table with columns "CN" and "CN_ll"
+#'
+#' @author Maryam Ghareghani
+#' @export
+#'
+makeCNcall <- function(probs) {
+  assert_that(is.data.table(probs),
+              "sample" %in% colnames(probs),
+              "cell"   %in% colnames(probs),
+              "chrom"  %in% colnames(probs),
+              "start"  %in% colnames(probs),
+              "end"    %in% colnames(probs),
+              "haplo_name" %in% colnames(probs),
+              "haplotype"  %in% colnames(probs),
+              "nb_hap_ll"  %in% colnames(probs)) %>% invisible
+
+  # add CN column to probs table
+  probs[, 
+        CN:=haplo_code_to_geno_class(haplotype),
+        by=haplotype]
+
+  # compute CN likelihoods
+  probs <- probs[,
+                 .(CN_ll=sum(nb_hap_ll)),
+                 by=.(sample,cell,chrom,start,end,CN)]
+
+  # order the different copy numbers based on their likelihoods and keep only the most likely CN
+  probs[,
+        CN_rank := frank(-CN_ll, ties.method = "random"), # random should never allow ties to get the same rank!
+        by = .(chrom, start, end, sample, cell)]
+  probs <- probs[CN_rank < 2]
+  probs[, CN_rank:=NULL]
+
+  return(probs)
 }

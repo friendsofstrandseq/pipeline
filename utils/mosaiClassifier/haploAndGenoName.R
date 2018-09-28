@@ -56,3 +56,20 @@ haplo_code_to_geno_class <- function(hap.code)
                        ifelse(V2+V4>0, "inv", "ref") )]
   return(dd$state)
 }
+
+#' get CN from haplotype
+#' 
+#' @param hap.code The haplotype coding
+#' @author Maryam Ghareghani
+#' @export
+#' 
+
+haplo_code_to_geno_class <- function(hap.code)
+{
+  if (length(hap.code) < 1) return (character())
+  
+  dd = as.data.table(str_split(hap.code,"", simplify = T, n = 4))
+  dd = dd[, lapply(.SD, as.integer)]
+  dd[, CN:=V1+V2+V3+V4, by=1:nrow(dd)]
+  return(dd$CN)
+}

@@ -625,6 +625,16 @@ if config["manual_segments"]:
         script:
             "utils/mosaiClassifier.snakemake.R"
 
+    rule mosaiClassifier_make_CN_call_manual_segs:
+        input:
+            probs = "manaul_segmentation/{sample}/sv_probabilities.Rdata"
+        output: 
+            calls = "manaul_segmentation/{sample}/CN_calls.txt"
+        log:
+            "log/mosaiClassifier_make_CN_call_manual_segs_{sample}.log"
+        script:
+            "utils/mosaiClassifier_CN_call.snakemake.R"
+
 
 ################################################################################
 # Strand states & phasing                                                      #
