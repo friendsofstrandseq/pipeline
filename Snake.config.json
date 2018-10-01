@@ -1,4 +1,4 @@
-{
+	{
     "chromosomes"   : ["chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11","chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20","chr21","chr22","chrX"],
 
     "reference"     : "/MMCI/TM/scratch/ref/GRCh38_no_alt_analysis_set/GCA_000001405.15_GRCh38_no_alt_analysis_set.fna",
@@ -34,13 +34,19 @@
         "100000" : 0.3,
         "500000" : 0.1
     },
+    "simulation_mode" : true,
     "simulation_min_reads_per_library" :  500000,
-    "simulation_max_reads_per_library" : 1000000,
-    "simulation_window_sizes" : [50000, 100000],
-    "simulation_cell_count" : 100,
-    "simulation_alpha" : 0.02,
+    "simulation_max_reads_per_library" : 1200000,
+    "simulation_alpha"                 : 0.08,
+    "num_SVs_per_genome"               : 25,
+    "genome_size"                      : 3e9,
+    "num_cells"                        : 200,
 
-    "genome_size" : 3e9,
+    "seeds"          : [1],
+    "window_sizes"   : 50000,
+    "size_ranges"    : ["200000-500000", "500000-1000000", "1000000-2000000"],
+    "vaf_ranges"     : ["2-4","5-10","10-20","20-40","40-60","95-100"],
+    "sv_classes"     : ["het_del","het_inv","het_dup"],
 
     "ground_truth_clonal" : {
         "RPE-BM510" : "/MMCI/TM/scratch/strandseq/input-data/ground_truth/RPE-BM510_manual/clonal-events.tsv"
