@@ -207,8 +207,8 @@ rule link_to_simulated_strand_states:
         f = os.path.basename(output.states)
         shell("cd {d} && ln -s ../../{input.sce} {f} && cd ../..")
 
-ruleorder: link_to_simulated_counts > mosaic_count_fixed
-ruleorder: link_to_simulated_strand_states > convert_strandphaser_output
+#ruleorder: link_to_simulated_counts > mosaic_count_fixed
+#ruleorder: link_to_simulated_strand_states > convert_strandphaser_output
 
 
 
@@ -327,86 +327,88 @@ rule generate_halo_json:
 # Read counting                                                                #
 ################################################################################
 
-rule generate_exclude_file_1:
-    output:
-        temp("log/exclude_file.temp")
-    input:
-        bam = expand("bam/{sample}/selected/{bam}.bam", sample = SAMPLES[0], bam = BAM_PER_SAMPLE[SAMPLES[0]][0])
-    log:
-        "log/generate_exclude_file_1.log"
-    params:
-        samtools = config["samtools"]
-    shell:
-        """
-        {params.samtools} view -H {input.bam} | awk '/^@SQ/' > {output} 2> {log}
-        """
+if not config["simulation_mode"]:
+    rule generate_exclude_file_1:
+        output:
+            temp("log/exclude_file.temp")
+        input:
+            bam = expand("bam/{sample}/selected/{bam}.bam", sample = SAMPLES[0], bam = BAM_PER_SAMPLE[SAMPLES[0]][0])
+        log:
+            "log/generate_exclude_file_1.log"
+        params:
+            samtools = config["samtools"]
+        shell:
+            """
+            {params.samtools} view -H {input.bam} | awk '/^@SQ/' > {output} 2> {log}
+            """
 
-rule generate_exclude_file_2:
-    output:
-        "log/exclude_file"
-    input:
-        "log/exclude_file.temp"
-    params:
-        chroms = config["chromosomes"]
-    run:
-        with open(input[0]) as f:
-            with open(output[0],"w") as out:
-                for line in f:
-                    contig = line.strip().split()[1]
-                    contig = contig[3:]
-                    if contig not in params.chroms:
-                        print(contig, file = out)
+if not config["simulation_mode"]:
+    rule generate_exclude_file_2:
+        output:
+            "log/exclude_file"
+        input:
+            "log/exclude_file.temp"
+        params:
+            chroms = config["chromosomes"]
+        run:
+            with open(input[0]) as f:
+                with open(output[0],"w") as out:
+                    for line in f:
+                        contig = line.strip().split()[1]
+                        contig = contig[3:]
+                        if contig not in params.chroms:
+                            print(contig, file = out)
 
-
-rule mosaic_count_fixed:
-    input:
-        bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
-        bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
-        excl = "log/exclude_file"
-    output:
-        counts = "counts/{sample}/{window}_fixed.txt.gz",
-        info   = "counts/{sample}/{window}_fixed.info"
-    log:
-        "log/{sample}/mosaic_count_fixed.{window}.log"
-    params:
-        mc_command = config["mosaicatcher"]
-    shell:
-        """
-        {params.mc_command} count \
-            --verbose \
-            --do-not-blacklist-hmm \
-            -o {output.counts} \
-            -i {output.info} \
-            -x {input.excl} \
-            -w {wildcards.window} \
-            {input.bam} \
-        > {log} 2>&1
-        """
-
-rule mosaic_count_variable:
-    input:
-        bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]),
-        bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]),
-        bed = lambda wc: config["variable_bins"][str(wc.window)],
-        excl = "log/exclude_file"
-    output:
-        counts = "counts/{sample}/{window}_variable.txt.gz",
-        info   = "counts/{sample}/{window}_variable.info"
-    log:
-        "log/{sample}/mosaic_count_variable.{window}.log"
-    params:
-        mc_command = config["mosaicatcher"]
-    shell:
-        """
-        echo "NOTE: Exclude file not used in variable-width bins"
-        {params.mc_command} count \
-            --verbose \
-            -o {output.counts} \
-            -i {output.info} \
-            -b {input.bed} \
-            {input.bam} \
-        > {log} 2>&1
-        """
+if not config["simulation_mode"]:
+    rule mosaic_count_fixed:
+        input:
+            bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+            bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+            excl = "log/exclude_file"
+        output:
+            counts = "counts/{sample}/{window}_fixed.txt.gz",
+            info   = "counts/{sample}/{window}_fixed.info"
+        log:
+            "log/{sample}/mosaic_count_fixed.{window}.log"
+        params:
+            mc_command = config["mosaicatcher"]
+        shell:
+            """
+            {params.mc_command} count \
+                --verbose \
+                --do-not-blacklist-hmm \
+                -o {output.counts} \
+                -i {output.info} \
+                -x {input.excl} \
+                -w {wildcards.window} \
+                {input.bam} \
+            > {log} 2>&1
+            """
+if not config["simulation_mode"]:
+    rule mosaic_count_variable:
+        input:
+            bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]),
+            bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]),
+            bed = lambda wc: config["variable_bins"][str(wc.window)],
+            excl = "log/exclude_file"
+        output:
+            counts = "counts/{sample}/{window}_variable.txt.gz",
+            info   = "counts/{sample}/{window}_variable.info"
+        log:
+            "log/{sample}/mosaic_count_variable.{window}.log"
+        params:
+            mc_command = config["mosaicatcher"]
+        shell:
+            """
+            echo "NOTE: Exclude file not used in variable-width bins"
+            {params.mc_command} count \
+                --verbose \
+                -o {output.counts} \
+                -i {output.info} \
+                -b {input.bed} \
+                {input.bam} \
+            > {log} 2>&1
+            """
 
 rule extract_single_cell_counts:
     input:
@@ -728,21 +730,22 @@ def locate_snv_vcf(wildcards):
     else:
         return "external_snv_calls/{}/{}.vcf".format(wildcards.sample, wildcards.chrom)
 
-rule run_strandphaser_per_chrom:
-    input:
-        wcregions    = "strand_states/{sample}/{windows}.{bpdens}/strandphaser_input.txt",
-        snppositions = locate_snv_vcf,
-        configfile   = "strand_states/{sample}/{windows}.{bpdens}/StrandPhaseR.{chrom}.config",
-        strandphaser = "utils/R-packages/StrandPhaseR/R/StrandPhaseR",
-        bamfolder    = "bam/{sample}/selected"
-    output:
-        "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
-        "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf",
-    log:
-        "log/run_strandphaser_per_chrom/{sample}/{windows}.{bpdens}/{chrom}.log"
-    shell:
-        """
-        Rscript utils/StrandPhaseR_pipeline.R \
+if not config["simulation_mode"]:
+    rule run_strandphaser_per_chrom:
+        input:
+            wcregions    = "strand_states/{sample}/{windows}.{bpdens}/strandphaser_input.txt",
+            snppositions = locate_snv_vcf,
+            configfile   = "strand_states/{sample}/{windows}.{bpdens}/StrandPhaseR.{chrom}.config",
+            strandphaser = "utils/R-packages/StrandPhaseR/R/StrandPhaseR",
+            bamfolder    = "bam/{sample}/selected"
+        output:
+            "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
+            "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf",
+        log:
+            "log/run_strandphaser_per_chrom/{sample}/{windows}.{bpdens}/{chrom}.log"
+        shell:
+            """
+            Rscript utils/StrandPhaseR_pipeline.R \
                 {input.bamfolder} \
                 strand_states/{wildcards.sample}/{wildcards.windows}.{wildcards.bpdens}/StrandPhaseR_analysis.{wildcards.chrom} \
                 {input.configfile} \
@@ -750,7 +753,7 @@ rule run_strandphaser_per_chrom:
                 {input.snppositions} \
                 $(pwd)/utils/R-packages/ \
                 > {log} 2>&1
-        """
+            """
 
 rule compress_vcf:
     input:
@@ -817,19 +820,20 @@ rule convert_strandphaser_output:
 # Haplotagging                                                                 #
 ################################################################################
 
-rule haplotag_bams:
-    input:
-        vcf='phased-snvs/{sample}/{windows}.{bpdens}.vcf.gz',
-        tbi='phased-snvs/{sample}/{windows}.{bpdens}.vcf.gz.tbi',
-        bam='bam/{sample}/selected/{bam}.bam',
-        bai='bam/{sample}/selected/{bam}.bam.bai',
-        ref = config["reference"],
-    output:
-        bam='haplotag/bam/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/{bam}.bam',
-    log:
-        "log/haplotag_bams/{sample}/{windows}.{bpdens}/{bam}.log"
-    shell:
-        "whatshap haplotag -o {output.bam} -r {input.ref} {input.vcf} {input.bam} > {log} 2>{log}"
+if not config["simulation_mode"]:
+    rule haplotag_bams:
+        input:
+            vcf='phased-snvs/{sample}/{windows}.{bpdens}.vcf.gz',
+            tbi='phased-snvs/{sample}/{windows}.{bpdens}.vcf.gz.tbi',
+            bam='bam/{sample}/selected/{bam}.bam',
+            bai='bam/{sample}/selected/{bam}.bam.bai',
+            ref = config["reference"],
+        output:
+            bam='haplotag/bam/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/{bam}.bam',
+        log:
+            "log/haplotag_bams/{sample}/{windows}.{bpdens}/{bam}.log"
+        shell:
+            "whatshap haplotag -o {output.bam} -r {input.ref} {input.vcf} {input.bam} > {log} 2>{log}"
 
 rule create_haplotag_segment_bed:
     input:
@@ -839,17 +843,18 @@ rule create_haplotag_segment_bed:
     shell:
         "awk 'BEGIN {{s={wildcards.size};OFS=\"\\t\"}} $2!=c {{prev=0}} NR>1 {{print $2,prev*s+1,($3+1)*s; prev=$3+1; c=$2}}' {input.segments} > {output.bed}"
 
-rule create_haplotag_table:
-    input:
-        bam='haplotag/bam/{sample}/{windows}.{bpdens}/{cell}.bam',
-        bai='haplotag/bam/{sample}/{windows}.{bpdens}/{cell}.bam.bai',
-        bed = "haplotag/bed/{sample}/{windows}.{bpdens}.bed"
-    output:
-        tsv='haplotag/table/{sample}/by-cell/haplotag-counts.{cell}.{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.tsv'
-    log:
-        "log/create_haplotag_table/{sample}.{cell}.{windows}.{bpdens}.log"
-    script:
-        "utils/haplotagTable.snakemake.R"
+if not config["simulation_mode"]:
+    rule create_haplotag_table:
+        input:
+            bam='haplotag/bam/{sample}/{windows}.{bpdens}/{cell}.bam',
+            bai='haplotag/bam/{sample}/{windows}.{bpdens}/{cell}.bam.bai',
+            bed = "haplotag/bed/{sample}/{windows}.{bpdens}.bed"
+        output:
+            tsv='haplotag/table/{sample}/by-cell/haplotag-counts.{cell}.{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.tsv'
+        log:
+            "log/create_haplotag_table/{sample}.{cell}.{windows}.{bpdens}.log"
+        script:
+            "utils/haplotagTable.snakemake.R"
 
 rule merge_haplotag_tables:
     input:
@@ -875,17 +880,18 @@ rule create_haplotag_likelihoods:
 # Call SNVs                                                                    #
 ################################################################################
 
-rule mergeBams:
-    input:
-        lambda wc: expand("bam/" + wc.sample + "/all/{bam}.bam", bam = ALLBAMS_PER_SAMPLE[wc.sample]) if wc.sample in ALLBAMS_PER_SAMPLE else "FOOBAR",
-    output:
-        "snv_calls/{sample}/merged.bam"
-    log:
-        "log/mergeBams/{sample}.log"
-    threads:
-        4
-    shell:
-        config["samtools"] + " merge -@ {threads} {output} {input} 2>&1 > {log}"
+if not config["simulation_mode"]:
+    rule mergeBams:
+        input:
+            lambda wc: expand("bam/" + wc.sample + "/all/{bam}.bam", bam = ALLBAMS_PER_SAMPLE[wc.sample]) if wc.sample in ALLBAMS_PER_SAMPLE else "FOOBAR",
+        output:
+            "snv_calls/{sample}/merged.bam"
+        log:
+            "log/mergeBams/{sample}.log"
+        threads:
+            4
+        shell:
+            config["samtools"] + " merge -@ {threads} {output} {input} 2>&1 > {log}"
 
 rule index_bam:
     input:
