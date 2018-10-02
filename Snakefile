@@ -121,6 +121,33 @@ rule simulate_genome:
     shell:
         "utils/simulate_SVs.R {wildcards.seed} {params.svcount} {params.minsize} {params.maxsize} {params.mindistance} {output.tsv} > {log} 2>&1"
 
+rule simulate_lineage_tree_and_svs:
+    input:
+        genome = "simulation/genome/genome{seed}.tsv"
+    output:
+        tree = "simulation/phylogeny/lineage_tree{seed}.newick",
+        edges = "simulation/phylogeny/lineage_tree_edges{seed}.newick",
+        genome = "simulation/phylogeny/genome/genome{seed}.tsv"
+    params:
+        cell_count = config["simulation_cell_count"],
+        subclonality = config["subclonality"]
+    log:
+        "log/simulate_lineage_tree/lineage_tree{seed}.log"
+    script:
+        "utils/simulate_lineage_tree.snakemake.R"
+
+rule create_sv_file_from_tree:
+    input:
+        tree = "simulation/phylogeny/lineage_tree{seed}.newick",
+        genome = "simulation/phylogeny/genome/genome{seed}.tsv"
+    output:
+        variants = "simulation/phylogeny/variants/genome{seed}-{window_size}.txt"
+    log:
+        "log/simulate_lineage_tree/create_sv_file_from_tree_seed{seed}-{window_size}.log"
+    script:
+        "utils/create_sv_file.snakemake.R"
+
+
 rule add_vafs_to_simulated_genome:
     input:
         tsv="simulation/genome/genome{seed}.tsv"
