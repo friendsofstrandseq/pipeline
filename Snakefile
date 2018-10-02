@@ -342,7 +342,6 @@ if not config["simulation_mode"]:
             {params.samtools} view -H {input.bam} | awk '/^@SQ/' > {output} 2> {log}
             """
 
-if not config["simulation_mode"]:
     rule generate_exclude_file_2:
         output:
             "log/exclude_file"
@@ -359,7 +358,6 @@ if not config["simulation_mode"]:
                         if contig not in params.chroms:
                             print(contig, file = out)
 
-if not config["simulation_mode"]:
     rule mosaic_count_fixed:
         input:
             bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
@@ -384,7 +382,7 @@ if not config["simulation_mode"]:
                 {input.bam} \
             > {log} 2>&1
             """
-if not config["simulation_mode"]:
+
     rule mosaic_count_variable:
         input:
             bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]),
@@ -835,15 +833,14 @@ if not config["simulation_mode"]:
         shell:
             "whatshap haplotag -o {output.bam} -r {input.ref} {input.vcf} {input.bam} > {log} 2>{log}"
 
-rule create_haplotag_segment_bed:
-    input:
-        segments="segmentation2/{sample}/{size}{what}.{bpdens}.txt",
-    output:
-        bed="haplotag/bed/{sample}/{size,[0-9]+}{what}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.bed",
-    shell:
-        "awk 'BEGIN {{s={wildcards.size};OFS=\"\\t\"}} $2!=c {{prev=0}} NR>1 {{print $2,prev*s+1,($3+1)*s; prev=$3+1; c=$2}}' {input.segments} > {output.bed}"
+    rule create_haplotag_segment_bed:
+        input:
+            segments="segmentation2/{sample}/{size}{what}.{bpdens}.txt",
+        output:
+            bed="haplotag/bed/{sample}/{size,[0-9]+}{what}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.bed",
+        shell:
+            "awk 'BEGIN {{s={wildcards.size};OFS=\"\\t\"}} $2!=c {{prev=0}} NR>1 {{print $2,prev*s+1,($3+1)*s; prev=$3+1; c=$2}}' {input.segments} > {output.bed}"
 
-if not config["simulation_mode"]:
     rule create_haplotag_table:
         input:
             bam='haplotag/bam/{sample}/{windows}.{bpdens}/{cell}.bam',
