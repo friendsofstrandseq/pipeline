@@ -23,6 +23,38 @@ get_hap_name <- function(hap.code)
   return("complex")
 }
 
+
+#' returns the genotype code given the genotyoe name
+#' 
+#' @param geno.name genotype name
+#' @author Maryam Ghareghani
+#' @export
+#' 
+
+geno_name_to_code <- function(geno.name)
+{
+  geno.codes <- c("1010", "1010", 
+                 "0010", "0000", # del
+                 "0110", "0101", # inv
+                 "2010", "2020", # dup
+                 "1110") # inv-dup
+  
+  geno.names <- c("hom_ref", "false_del",
+                 "het_del", "hom_del", # del
+                 "het_inv", "hom_inv", # inv
+                 "het_dup", "hom_dup", # dup
+                 "inv_dup") # inv-dup
+  
+  geno.idx <- match(geno.name, geno.names)
+  
+  if (!is.na(geno.idx))
+  {
+    return(geno.codes[geno.idx])
+  }
+  
+  return("complex")
+}
+
 #' converts the haplotype to the genotype name
 #' 
 #' @param hap.name The haplotype name
