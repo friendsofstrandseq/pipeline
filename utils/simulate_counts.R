@@ -46,7 +46,9 @@ simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
   counts <- merged.sce.sv[,
                  cbind(.SD, bin_start = union(start, get_range(ceiling(start/bin.size),floor(end/bin.size))*bin.size)),
                  by = 1:nrow(merged.sce.sv)]
-  counts[, bin_end:=data.table::shift(bin_start, type="lead", fill=max(end)), by=chrom]
+  counts[, bin_end:=data.table::shift(bin_start, type="lead", fill=max(end)), by=.(cell, chrom)]
+  # removing the rows with equal start and end (happens in the cases where there is an sv or sce breakpoint right in a bin boundary)
+  counts <- counts[bin_start < bin_end]
   # removing nrow and start and end columns
   counts[, `:=`(nrow=NULL, start=NULL, end=NULL)]
   
@@ -70,7 +72,7 @@ simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
   counts[, scalar:=1]
   
   # add expected read counts (W+C) column
-  counts[, expected:=((1-nb_p)*nb_r/nb_p)*((end-start)/bin.size)*(Wcn+Ccn)/2]
+  counts[, expected:=((1-nb_p)*nb_r/nb_p)*((end-start)/bin.size)]
   
   # add dispersion parameters separately for W and C
   counts <- add_dispPar(counts)
@@ -80,14 +82,10 @@ simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
                 C=rnbinom(.N, size = head(disp_c, 1), prob = head(nb_p, 1))),
          by = .(disp_w, disp_c)]
   
-  ##TODO: check the warnings (there are some NAs produced)
-  
   # sum up the counts in each bin, clean the data table and return the counts...
 }
 
 
-####TODO
-# check out why unique(counts[, nb_r]) has more than #cells elements!!!!
 
 #### test
 test.sce <- data.table(sample="simulation",
