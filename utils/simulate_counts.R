@@ -78,9 +78,10 @@ simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
   counts <- add_dispPar(counts)
   
   # generate W and C read counts
-  counts[, `:=`(W=rnbinom(.N, size = head(disp_w, 1), prob = head(nb_p, 1)),
-                C=rnbinom(.N, size = head(disp_c, 1), prob = head(nb_p, 1))),
-         by = .(disp_w, disp_c)]
+  set.seed(seed)
+  counts[, `:=`(W=rnbinom(1, size = disp_w, prob = nb_p),
+                C=rnbinom(1, size = disp_c, prob = nb_p)),
+         by = 1:nrow(counts)]
   
   # sum up the counts in each bin, clean the data table and return the counts...
 }
