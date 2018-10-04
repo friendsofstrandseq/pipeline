@@ -77,13 +77,17 @@ simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
   # add dispersion parameters separately for W and C
   counts <- add_dispPar(counts)
   
-  # generate W and C read counts
+  # generate w and c read counts
   set.seed(seed)
-  counts[, `:=`(W=rnbinom(1, size = disp_w, prob = nb_p),
-                C=rnbinom(1, size = disp_c, prob = nb_p)),
+  counts[, `:=`(w=rnbinom(1, size = disp_w, prob = nb_p),
+                c=rnbinom(1, size = disp_c, prob = nb_p)),
          by = 1:nrow(counts)]
   
-  # sum up the counts in each bin, clean the data table and return the counts...
+  # sum up the counts in each bin, clean the data table and return the counts
+  counts <- counts[, .(start=min(start), end=max(end), c=sum(c), w=sum(w)),
+                   by=.(sample, cell, chrom, floor(start/bin.size))]
+  
+  return(counts)
 }
 
 
