@@ -1,9 +1,7 @@
-log <- file(snakemake@log[[1]], open='wt')
-sink(file=log, type='message')
-sink(file=log, type='output')
-
 suppressMessages(library(GenomicRanges))
 library(data.table)
+
+args = commandArgs(trailingOnly=TRUE)
 
 removeOverlap <- function(sce){
   sce.granges <- GRanges(seqnames = sce[, paste0(sample, "_", chrom, "_", cell)], 
@@ -28,6 +26,6 @@ removeOverlap <- function(sce){
   return(sce)
 }
 
-sce <- fread(snakemake@input[["sce"]])
+sce <- fread(args[1])
 sce <- removeOverlap(sce)
-fwrite(sce, file=snakemake@output[["sce"]], sep="\t")
+fwrite(sce, file=args[1], sep="\t")

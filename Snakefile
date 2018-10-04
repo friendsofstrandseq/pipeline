@@ -171,6 +171,7 @@ def max_coverage(wildcards):
 def neg_binom_p(wildcards):
     return float(config["simulation_neg_binom_p"][wildcards.window_size])
 
+## correct the sce file (remove overlapping sce regions) at the end of simulate_counts; it should be properly fixed later
 rule simulate_counts:
     input:
         config="simulation/genome-with-vafs/genome{seed}.tsv",
@@ -207,19 +208,9 @@ rule simulate_counts:
             -P {output.phases} \
             -S {output.sce} \
             --sample-name simulation{wildcards.seed}-{wildcards.window_size} \
-            {input.config} > {log} 2>&1
+            {input.config} \
+            && Rscript utils/remove_overlapping_sces.R {output.sce} > {log} 2>&1
         """
-
-## correct the sce file; it should be properly fixed later
-rule remove_overlapping_sces:
-    input:
-        sce="simulation/sce/genome{seed}-{window_size}.txt"
-    output:
-        sce="simulation/sce/nonoverlapping-genome{seed}-{window_size}.txt"
-    log:
-        "log/remove_overlapping_sces/genome{seed}-{window_size}.log"
-    script:
-        "utils/remove_overlapping_sces.snakemake.R"
 
 rule link_to_simulated_counts:
     input:
