@@ -14,6 +14,16 @@ alpha <- 0.05
 bin.size <- 100000
 
 simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
+  # check input data
+  # -> test whether sces are disjoint intervals
+  test_disjoint_intervals <- function(d) {
+    gr <- makeGRangesFromDataFrame(d)
+    end(gr) <- end(gr) -1
+    return(isDisjoint(gr))
+  }
+  sce[, assert_that(test_disjoint_intervals(.SD)), by = .(sample, cell)] %>% invisible
+  
+  
   # renaming sce and sv start and end columns
   colnames(sce)[colnames(sce)=="start"] <- "sce_start"
   colnames(sce)[colnames(sce)=="end"] <- "sce_end"
@@ -22,11 +32,6 @@ simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
   
   # merge sce and sv tables
   merged.sce.sv <- merge_sce_sv(sce, sv)
-  
-  #### fix this issue:
-  #Warning message:
-  #  In `[.data.table`(all.breakpoints, , `:=`(class = sce[subjectHits(f.sce),  :
-  #                                                          Supplied 40524 items to be assigned to 40519 items of column 'class' (5 unused)
   
   get_range <- function(a, b)
   {
