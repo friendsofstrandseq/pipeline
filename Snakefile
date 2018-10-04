@@ -210,6 +210,17 @@ rule simulate_counts:
             {input.config} > {log} 2>&1
         """
 
+## correct the sce file; it should be properly fixed later
+rule remove_overlapping_sces:
+    input:
+        sce="simulation/sce/genome{seed}-{window_size}.txt"
+    output:
+        sce="simulation/sce/nonoverlapping-genome{seed}-{window_size}.txt"
+    log:
+        "log/remove_overlapping_sces/genome{seed}-{window_size}.log"
+    script:
+        "utils/remove_overlapping_sces.snakemake.R"
+
 rule link_to_simulated_counts:
     input:
         counts="simulation/counts/genome{seed}-{window_size}.txt.gz",
