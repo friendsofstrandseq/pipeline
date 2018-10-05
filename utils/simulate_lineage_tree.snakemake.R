@@ -18,7 +18,7 @@ colnames(genome) <- c("chrom", "start", "end", "SV_type")
 
 # generate a random phylogenetics tree
 set.seed(seed)
-phylo.tree <- rtree(num.cells, tip.label = paste0("cell_", 1:num.cells))
+phylo.tree <- rtree(num.cells, tip.label = paste0("cell_", 1:num.cells-1))
 
 # remove the edge lengths
 phylo.tree$edge.length <- NULL
