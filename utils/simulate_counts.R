@@ -1,17 +1,11 @@
 library(data.table)
 library(assertthat)
 library(dplyr)
-setwd("/home/maryam/research/Mosaicatcher/pipeline/")
 
 source("utils/mosaiClassifier/haploAndGenoName.R")
 source("utils/mosaiClassifier/getDispParAndSegType.R")
 source("utils/mosaiClassifier/mosaiClassifier.R")
 
-sce <- fread("/local/home/maryam/research/SCITE/test-breakpoints/final.txt")
-sv <- fread("/local/home/maryam/research/SCITE/test-breakpoints/genome0-100000.txt")
-info <- fread("/local/home/maryam/research/SCITE/test-breakpoints/counts-simulation0-100000/100000_fixed.info")
-alpha <- 0.05
-bin.size <- 100000
 
 simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
   # check input data
@@ -89,24 +83,6 @@ simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
   
   return(counts)
 }
-
-
-
-#### test
-test.sce <- data.table(sample="simulation",
-                       cell="cell_0",
-                       chrom=paste0("chr", c(1,1,2,2)), 
-                       start=c(0,245, 0, 350), 
-                       end = c(245, 956, 350, 578), 
-                       class=c("WC", "WW", "CC", "CW"))
-test.sv <- data.table(sample="simulation",
-                      cell=c("cell_0","cell_1","cell_0"),
-                      chrom=c("chr1","chr1","chr2"), 
-                      start=c(20,157,110), 
-                      end = c(55,347,224), 
-                      SV_type = c("del","del","inv"))
-
-
 
 
 merge_sce_sv <- function(sce, sv){
