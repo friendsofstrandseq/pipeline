@@ -147,6 +147,19 @@ rule create_sv_file_from_tree:
     script:
         "utils/create_sv_file.snakemake.R"
 
+rule simulate_tree_based_counts:
+    input:
+        variants="simulation/phylogeny/variants/genome{seed}-{window_size}.txt",
+        sce="simulation/sce/genome{seed}-{window_size}.txt",
+        info="simulation/info/genome{seed}-{window_size}.txt"
+    output:
+        counts="simulation/phylogeny/counts/genome{seed}-{window_size}.txt.gz"
+    params:
+        alpha=config["simulation_alpha"]
+    log:
+        "log/simulate_tree_based_counts/create_sv_file_from_tree_seed{seed}-{window_size}.log"
+    script:
+        "utils/simulate_counts.snakemake.R"
 
 rule add_vafs_to_simulated_genome:
     input:
