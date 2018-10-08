@@ -154,7 +154,7 @@ mosaiClassifierPrepare <- function(counts, info, strand, segs, normVector = NULL
 
 
 
-mosaiClassifierCalcProbs <- function(probs, maximumCN=4, haplotypeMode=F, alpha=0.05) {
+mosaiClassifierCalcProbs <- function(probs, maximumCN=4, haplotypeMode=F, alpha=0.05, definedHapStatus=FALSE, hapStatus=NULL) {
 
   assert_that(is.data.table(probs),
               "sample" %in% colnames(probs),
@@ -173,13 +173,15 @@ mosaiClassifierCalcProbs <- function(probs, maximumCN=4, haplotypeMode=F, alpha=
               !("nb_hap_ll"  %in% colnames(probs)))
 
 
-  # defining the vector of all possible haplotypes
-  hapStatus <- NULL
-  for (j in 0:maximumCN){
-    hapStatus <- c(hapStatus, allStatus(3,j))
-  }
-  for (j in 1:length(hapStatus)){
-    hapStatus[j] <- paste(decodeStatus(hapStatus[j]), collapse = '')
+  if (!definedHapStatus){
+    # defining the vector of all possible haplotypes
+    hapStatus <- NULL
+    for (j in 0:maximumCN){
+      hapStatus <- c(hapStatus, allStatus(3,j))
+    }
+    for (j in 1:length(hapStatus)){
+      hapStatus[j] <- paste(decodeStatus(hapStatus[j]), collapse = '')
+    }
   }
 
   # creating a datatable containing all possible combinations of strand states and haplotypes,

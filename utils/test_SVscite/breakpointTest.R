@@ -42,7 +42,7 @@ sce <- getMajorityStrandState(sce)
 # running mosaiClassifier
 d <- mosaiClassifierPrepare(counts, info, strand = sce, segs)
 #d.chr1 <- d[chrom == "chr1"]
-e <- mosaiClassifierCalcProbs(d.chr1, definedHapStatus=T, hapStatus=hapStatus)
+e <- mosaiClassifierCalcProbs(d, definedHapStatus=T, hapStatus=hapStatus)
 
 e.wide <- dcast(e, cell+haplotype ~ chrom+start+end, value.var = "nb_gt_ll")
 e.wide.consecutive.col.prod <- e.wide[, .(cell, haplotype)]
