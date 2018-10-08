@@ -66,3 +66,4 @@ br.likelihood.mat <- t(br.likelihood.mat)
 br.unq
 
 # compare br.likelihoods.mat with br.unq ...
+
