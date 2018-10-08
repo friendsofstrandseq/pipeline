@@ -16,7 +16,7 @@ seed <- snakemake@wildcards[["seed"]]
 counts <- simulateCounts(sv, sce, info, alpha, bin.size, seed)
 
 gz <- gzfile(snakemake@output[["counts"]], "w")
-write.csv(counts, gz)
+write.csv(counts, gz, row.names=F)
 close(gz)
 
 

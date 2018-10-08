@@ -1,7 +1,3 @@
-library(data.table)
-library(assertthat)
-library(dplyr)
-
 source("utils/mosaiClassifier/haploAndGenoName.R")
 source("utils/mosaiClassifier/getDispParAndSegType.R")
 source("utils/mosaiClassifier/mosaiClassifier.R")
@@ -78,8 +74,11 @@ simulateCounts <- function(sv, sce, info, alpha, bin.size, seed){
          by = 1:nrow(counts)]
   
   # sum up the counts in each bin, clean the data table and return the counts
-  counts <- counts[, .(start=min(start), end=max(end), c=sum(c), w=sum(w)),
+  counts <- counts[, .(start=min(start), end=max(end), class=ifelse(length(unique(class))==1, head(class,1), "?"), c=sum(c), w=sum(w)),
                    by=.(sample, cell, chrom, floor(start/bin.size))]
+
+  # remove the floor column
+  counts[, floor:=NULL]
   
   return(counts)
 }
