@@ -68,29 +68,33 @@ localrules:
     split_external_snv_calls,
     prepare_strandphaser_config_per_chrom
 
-rule all:
-    input:
-        expand("plots/{sample}/{window}_fixed.pdf",      sample = SAMPLES, window = [50000, 100000, 200000, 500000]),
-        expand("plots/{sample}/{window}_fixed_norm.pdf", sample = SAMPLES, window = [50000, 100000, 200000]),
-        expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf",
-               sample = SAMPLE,
-               chrom = config["chromosomes"],
-               window = [100000],
-               bpdens = BPDENS,
-               method = METHODS),
-        expand("ploidy/{sample}/ploidy.{chrom}.txt", sample = SAMPLES, chrom = config["chromosomes"]),
-        expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_consistency/{method}.consistency-barplot-{plottype}.pdf",
-               sample = SAMPLES,
-               window = [100000],
-               bpdens = BPDENS,
-               method = METHODS,
-               plottype = ["byaf","bypos"]),
-        expand("halo/{sample}/{window}_{suffix}.json.gz",
-               sample = SAMPLES,
-               window = [100000],
-               suffix = ["fixed", "fixed_norm"]),
-        expand("stats-merged/{sample}/stats.tsv", sample = SAMPLES),
-
+if config["simulation_mode"]:
+    rule all:
+        input:
+            expand("simulation/breakpoint_likelihoods/plot-breakpoint-ll{seed}-{window_size}.pdf", seed=range(2), window_size=[x*100000 for x in range(1,11)])
+else:
+    rule all:
+        input:
+            expand("plots/{sample}/{window}_fixed.pdf",      sample = SAMPLES, window = [50000, 100000, 200000, 500000]),
+            expand("plots/{sample}/{window}_fixed_norm.pdf", sample = SAMPLES, window = [50000, 100000, 200000]),
+            expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf",
+                   sample = SAMPLE,
+                   chrom = config["chromosomes"],
+                   window = [100000],
+                   bpdens = BPDENS,
+                   method = METHODS),
+            expand("ploidy/{sample}/ploidy.{chrom}.txt", sample = SAMPLES, chrom = config["chromosomes"]),
+            expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_consistency/{method}.consistency-barplot-{plottype}.pdf",
+                   sample = SAMPLES,
+                   window = [100000],
+                   bpdens = BPDENS,
+                   method = METHODS,
+                   plottype = ["byaf","bypos"]),
+            expand("halo/{sample}/{window}_{suffix}.json.gz",
+                   sample = SAMPLES,
+                   window = [100000],
+                   suffix = ["fixed", "fixed_norm"]),
+            expand("stats-merged/{sample}/stats.tsv", sample = SAMPLES),
 
 ################################################################################
 # Simulation of count data                                                     #
