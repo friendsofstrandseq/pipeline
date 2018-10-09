@@ -1,5 +1,6 @@
 library(data.table)
 library(ggplot2)
+library(gridExtra)
 source("utils/mosaiClassifier/generateHaploStates.R")
 source("utils/test_SVscite/newComputeBreakpointMatrix.R")
 source("utils/mosaiClassifier/mosaiClassifier.R")
@@ -17,14 +18,20 @@ hapStatus <- c(hom_ref="1010", hom_del="0000", del_h1="0010", del_h2="1000", hom
 bin.size <- as.numeric(bin.size)
 
 # calling the functions
-br.probs <- getBreakpointsLikelihood(sce, counts, chrom.filt, haplotype)
+br.probs <- getBreakpointsLikelihood(sce, counts, chrom.filt, definedHapStatus=T, hapStatus=hapStatus)
 sv.br <- getTrueBreakpoints(sv, bin.size, chrom.filt)
 sce.br <- getTrueBreakpoints(sce, bin.size, chrom.filt)
 
 br.probs <- addTrueBRtoBRprobs(br.probs, sv.br, sce.br)
 
+# plotting
+br.ll.hist <- ggplot(br.probs, aes(x=log(br_ll), fill=breakpoint_type!="no_br"))+geom_histogram(aes(y=..density..))
+br.ll.density <- ggplot(br.probs, aes(x=log(br_ll), col=breakpoint_type!="no_br"))+geom_density()
+grid.arrange(br.ll.hist, br.ll.density, nrow=2,  ncol=1)
 
-getBreakpointsLikelihood <- function(sce, counts, chrom.filt=NULL, haplotype, haplotypeMode=F){
+
+
+getBreakpointsLikelihood <- function(sce, counts, chrom.filt=NULL, definedHapStatus=F, hapStatus=NULL, haplotypeMode=F){
 	# define segs
 	num.cells <- length(unique(sce[, cell]))
 	segs <- counts[, .(k=.N/num.cells), by=chrom]
@@ -38,7 +45,7 @@ getBreakpointsLikelihood <- function(sce, counts, chrom.filt=NULL, haplotype, ha
 
 	# running mosaiClassifier
 	probs <- mosaiClassifierPrepare(counts, info, strand = sce, segs)
-	probs <- mosaiClassifierCalcProbs(probs, definedHapStatus=T, hapStatus=hapStatus, haplotypeMode)
+	probs <- mosaiClassifierCalcProbs(probs, definedHapStatus=definedHapStatus, hapStatus=hapStatus, haplotypeMode)
 
 	if (!haplotypeMode) {
 		# define genotype column
