@@ -60,10 +60,3 @@ d = mosaiClassifierPrepare(counts, info, strand, segs, manual.segs=snakemake@par
 e = mosaiClassifierCalcProbs(d, maximumCN = 4, haplotypeMode = haplotypeMode)
 
 saveRDS(e, file = snakemake@output[[1]])
-
-
-
-
-
-
-

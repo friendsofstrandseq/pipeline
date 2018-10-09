@@ -157,9 +157,35 @@ rule simulate_tree_based_counts:
     params:
         alpha=config["simulation_alpha"]
     log:
-        "log/simulate_tree_based_counts/create_sv_file_from_tree_seed{seed}-{window_size}.log"
+        "log/simulate_tree_based_counts_seed{seed}-{window_size}.log"
     script:
         "utils/simulate_counts.snakemake.R"
+
+rule simul_compute_breakpoints_likelihood:
+    input:
+        variants="simulation/phylogeny/variants/genome{seed}-{window_size}.txt",
+        sce="simulation/sce/genome{seed}-{window_size}.txt",
+        info="simulation/info/genome{seed}-{window_size}.txt",
+        counts="simulation/phylogeny/counts/genome{seed}-{window_size}.txt.gz"
+    output:
+        breakpoint_ll="simulation/breakpoint_likelihoods/breakpoint-ll{seed}-{window_size}-{chrom}.txt.gz"
+    params:
+        alpha=config["simulation_alpha"]
+    log:
+        "log/simul_compute_breakpoints_likelihood_seed{seed}-{window_size}.log"
+    script:
+        "utils/computeBreakpointLikelihoods.snakemake.R"
+
+rule simul_plot_breakpoints_likelihood:
+    input:
+        breakpoint_ll=expand("simulation/breakpoint_likelihoods/breakpoint-ll{{seed}}-{{window_size}}-{chrom}.txt.gz", chrom = config["chromosomes"])
+    output:
+        plot_breakpoint_ll="simulation/breakpoint_likelihoods/plot-breakpoint-ll{seed}-{window_size}.pdf"
+    log:
+        "log/simul_plot_breakpoints_likelihood_seed{seed}-{window_size}.log"
+    script:
+        "utils/plotBreakpointLikelihoods.snakemake.R"
+
 
 rule add_vafs_to_simulated_genome:
     input:
