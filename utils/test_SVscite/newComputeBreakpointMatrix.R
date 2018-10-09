@@ -1,4 +1,8 @@
+library(data.table)
+library(ggplot2)
 source("utils/mosaiClassifier/generateHaploStates.R")
+source("utils/test_SVscite/newComputeBreakpointMatrix.R")
+source("utils/mosaiClassifier/mosaiClassifier.R")
 
 
 simulation <- 1 # args[1]
@@ -9,17 +13,20 @@ sv <- fread(paste0("/MMCI/TM/scratch/maryam/SV-SCITE/test-breakpoints-matrix/SV-
 counts <- fread(paste0("zcat /MMCI/TM/scratch/maryam/SV-SCITE/test-breakpoints-matrix/SV-tree-simulation-2018-01-10/simulation/phylogeny/counts/genome", simulation, "-", bin.size, ".txt.gz"))
 info <- fread(paste0("/MMCI/TM/scratch/maryam/SV-SCITE/test-breakpoints-matrix/SV-tree-simulation-2018-01-10/simulation/info/genome", simulation, "-", bin.size,".txt"))
 
+hapStatus <- c(hom_ref="1010", hom_del="0000", del_h1="0010", del_h2="1000", hom_dup="2020", dup_h1="2010", dup_h2="1020", hom_inv="0101", inv_h1="0110", inv_h2="1001", inv_dup_h1="1110", inv_dup_h2="1011")
+bin.size <- as.numeric(bin.size)
+
 # calling the functions
 br.probs <- getBreakpointsLikelihood(sce, counts, chrom.filt, haplotype)
 sv.br <- getTrueBreakpoints(sv, bin.size, chrom.filt)
 sce.br <- getTrueBreakpoints(sce, bin.size, chrom.filt)
 
-br.probs <- addTrueBRtoBRprobs(br.probs, sv.probs, sce.probs)
+br.probs <- addTrueBRtoBRprobs(br.probs, sv.br, sce.br)
 
 
 getBreakpointsLikelihood <- function(sce, counts, chrom.filt=NULL, haplotype, haplotypeMode=F){
 	# define segs
-	num.cells <- ncol(br)
+	num.cells <- length(unique(sce[, cell]))
 	segs <- counts[, .(k=.N/num.cells), by=chrom]
 	segs <- segs[, cbind(.SD, bps=1:k-1), by=1:nrow(segs)]
 	
