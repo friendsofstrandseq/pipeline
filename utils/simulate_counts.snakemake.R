@@ -14,9 +14,10 @@ bin.size <- as.numeric(snakemake@wildcards[["window_size"]])
 seed <- snakemake@wildcards[["seed"]]
 
 counts <- simulateCounts(sv, sce, info, alpha, bin.size, seed)
+setcolorder(counts, c("chrom", "start", "end", "sample", "cell", "c", "w", "class"))
 
 gz <- gzfile(snakemake@output[["counts"]], "w")
-write.csv(counts, gz, row.names=F)
+write.table(format(counts, scientific=F), gz, sep="\t", quote=F, row.names=F)
 close(gz)
 
 
