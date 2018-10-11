@@ -68,10 +68,11 @@ localrules:
     split_external_snv_calls,
     prepare_strandphaser_config_per_chrom
 
-if config["simulation_mode"]:
+if config["simulation_mode"] & config["skip_segmentation"]:
     rule all:
         input:
-            expand("simulation/breakpoint_likelihoods/plot-breakpoint-ll{seed}-{window_size}.pdf", seed=range(2), window_size=[x*100000 for x in range(1,11)])
+            expand("manaul_segmentation/simulation{seed}/{window_size}-sv_probabilities.Rdata", seed=range(2), window_size=100000)
+            #expand("segmentation/simulation{seed}/{window_size}_fixed.txt", seed=range(2), window_size=100000)
 else:
     rule all:
         input:
@@ -157,7 +158,7 @@ rule simulate_tree_based_counts:
         sce="simulation/sce/genome{seed}-{window_size}.txt",
         info="simulation/info/genome{seed}-{window_size}.txt"
     output:
-        counts="simulation/phylogeny/counts/genome{seed}-{window_size}.txt.gz"
+        counts="counts/simulation{seed}/{window_size}_fixed.txt.gz"
     params:
         alpha=config["simulation_alpha"]
     log:
@@ -170,21 +171,21 @@ rule simul_compute_breakpoints_likelihood:
         variants="simulation/phylogeny/variants/genome{seed}-{window_size}.txt",
         sce="simulation/sce/genome{seed}-{window_size}.txt",
         info="simulation/info/genome{seed}-{window_size}.txt",
-        counts="simulation/phylogeny/counts/genome{seed}-{window_size}.txt.gz"
+        counts="counts/simulation{seed}/{window_size}_fixed.txt.gz"
     output:
-        breakpoint_ll="simulation/breakpoint_likelihoods/breakpoint-ll{seed}-{window_size}-{chrom}.txt.gz"
+        breakpoint_ll="breakpoint_likelihoods/simulation{seed}/breakpoint-ll-{window_size}-{chrom}.txt.gz"
     params:
         alpha=config["simulation_alpha"]
     log:
-        "log/simul_compute_breakpoints_likelihood_seed{seed}-{window_size}.log"
+        "log/simul_compute_breakpoints_likelihood_seed{seed}-{window_size}-{chrom}.log"
     script:
         "utils/computeBreakpointLikelihoods.snakemake.R"
 
 rule simul_plot_breakpoints_likelihood:
     input:
-        breakpoint_ll=expand("simulation/breakpoint_likelihoods/breakpoint-ll{{seed}}-{{window_size}}-{chrom}.txt.gz", chrom = config["chromosomes"])
+        breakpoint_ll=expand("breakpoint_likelihoods/simulation{{seed}}/breakpoint-ll-{{window_size}}-{chrom}.txt.gz", chrom = config["chromosomes"])
     output:
-        plot_breakpoint_ll="simulation/breakpoint_likelihoods/plot-breakpoint-ll{seed}-{window_size}.pdf"
+        plot_breakpoint_ll="breakpoint_likelihoods/simulation{seed}/plot-breakpoint-ll-{window_size}.pdf"
     log:
         "log/simul_plot_breakpoints_likelihood_seed{seed}-{window_size}.log"
     script:
@@ -681,7 +682,29 @@ rule call_complex_regions:
 # Conditional SV classification for the case of manual segments                #
 ################################################################################
 
-if config["manual_segments"]:
+if config["simulation_mode"] & config["skip_segmentation"]:
+    rule create_ground_true_bed_file:
+        input:
+            genome     = "simulation/genome/genome{seed}.tsv"
+        output:
+            bp     = "manaul_segmentation/simulation{seed}.bed"
+        shell: "cut -f1-3 {input} > {output}"
+
+    rule mosaiClassifier_calc_probs_manual_segs:
+        input:
+            counts = "counts/simulation{seed}/{window_size}_fixed.txt.gz",
+            info   = "simulation/info/genome{seed}-{window_size}.txt",
+            states = "simulation/sce/genome{seed}-{window_size}.txt",
+            bp     = "manaul_segmentation/simulation{seed}.bed"
+        output: "manaul_segmentation/simulation{seed}/{window_size}-sv_probabilities.Rdata"
+        params:
+            manual_segs = config["manual_segments"],
+            #window_size = {wildcards.window_size}
+        log:
+            "log/mosaiClassifier_calc_probs_manual_segments_simulation{seed}-{window_size}.log"
+        script:
+            "utils/mosaiClassifier.snakemake.R"
+elif config["manual_segments"]:
     rule mosaiClassifier_calc_probs_manual_segs:
         input:
             counts = expand("counts/{{sample}}/{window}_fixed_norm.txt.gz", window=100000),

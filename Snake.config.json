@@ -24,6 +24,7 @@
     },
 
     "manual_segments" : true,
+    "skip_segmentation" : true,
 
     "paired_end"    : true,
 
@@ -60,3 +61,4 @@
         "RPE-BM510" : "/MMCI/TM/scratch/strandseq/input-data/ground_truth/RPE-BM510_manual/single-cell-events.tsv"
     }
 }
+
