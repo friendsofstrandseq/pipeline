@@ -113,6 +113,76 @@ forceBiallelic <- function(probs, penalize_factor = 0.1)
   probs <- apply_prior(probs, penalize_factor)
 }
 
+# The following finction computes the most likely alternative allele for each segment only based on CC and WW cells
+# and outputs the normalized prob table containing only ref and alt alleles for each segment
+#'
+#' @author Maryam Ghareghani
+#' @export
+#'
+
+getBiallelicLikelihoods <- function(probs)
+{
+  # remove complex SVs
+  probs <- probs[geno_name != "complex"]
+
+  # keep useful columns
+  probs <- probs[, .(sample, cell, chrom, start, end, class, geno_name, nb_gt_ll)]
+  probs <- unique(probs)
+
+  # Add reference likelihoods as an extra column (same as in makeSimpleSVCalls)
+  probs[,
+        ref_hom_ll := .SD[geno_name == "ref_hom", nb_gt_ll],
+        by = .(chrom, start, end, sample, cell)]
+
+  probs[, biall_gt_ll:=nb_gt_ll+ref_hom_ll]
+  probs[geno_name=="ref_hom", biall_gt_ll:=ref_hom_ll]
+  setkey(probs, sample, chrom, start, end, geno_name)
+
+  # get non-WC part of the probs table
+  probs.not.wc <- probs[!class %in% c("WC", "CW")]
+  # computing aggregate biallelic probabilities
+  probs.not.wc[, agg_gt_ll := sum(log(biall_gt_ll)), by=.(sample, chrom, start, end, geno_name)]
+
+  # adding the most Likely allele (other than reference) in the biallelic mode and creating a new column for that
+  probs.not.wc[, alt_allele:=geno_name[which.max(agg_gt_ll)], by=.(sample, chrom, start, end)]
+  
+  # merge the new probs table (only for non-WC cells containing alt_allele) and the old probs table
+  probs <- merge(probs, probs.not.wc, all.x=T, by=c("sample", "cell", "chrom", "start", "end", "geno_name", "class", "nb_gt_ll", "ref_hom_ll", "biall_gt_ll"))
+
+  # remove agg_gt_ll column
+  probs[, agg_gt_ll:=NULL]
+  # define alt_allele for all cells such that each segment has a unique alt_allele over all cells
+  probs[, alt_allele:=rep(alt_allele[!is.na(alt_allele)][1], .N), by=.(sample, chrom, start, end)]
+  
+  # keep only ref_hom and alt_allele for each segment
+  probs <- probs[geno_name=="ref_hom" | geno_name==alt_allele]
+
+  # normalize the prob table
+  probs <- probs[, nb_gt_ll:=nb_gt_ll/sum(nb_gt_ll), by=.(sample, cell, chrom, start, end)]
+
+  # remove segments with nan likelihood (TODO: look further into these cases)
+  probs <- probs[!is.na(nb_gt_ll)]
+
+  # keep only the alt_alle probs table
+  probs <- probs[geno_name==alt_allele]
+
+  # clean the probs table and remove unnessesary columns
+  probs <- probs[, .(sample, cell, chrom, start, end, class, nb_gt_ll, alt_allele)]
+
+  ### convert probs table to a wide matrix
+  # define a column for SV event names
+  probs[, event_name:=paste0(sample, "_", chrom, "_", start, "_", end, "_", alt_allele)]
+  probs.mat <- dcast(probs, event_name~cell, value.var="nb_gt_ll")
+  event_names <- probs.mat$event_name
+  probs.mat <- as.matrix(probs.mat[,2:ncol(probs.mat)])
+  rownames(probs.mat) <- event_names
+
+  # set NA (uncertain) valuses in probs.mat matrix to 0.5
+  probs.mat[which(is.na(probs.mat))] <- 0.5
+
+  return(list(probs[, -"event_name"], probs.mat))
+}
+
 #' Computes CN likelihoods and Derives CN with highest probability according in each cell and segment.
 #' Output is a table with columns "CN" and "CN_ll"
 #'

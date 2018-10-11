@@ -71,8 +71,8 @@ localrules:
 if config["simulation_mode"] & config["skip_segmentation"]:
     rule all:
         input:
-            expand("manaul_segmentation/simulation{seed}/{window_size}-sv_probabilities.Rdata", seed=range(2), window_size=100000)
-            #expand("segmentation/simulation{seed}/{window_size}_fixed.txt", seed=range(2), window_size=100000)
+            expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-matrix.data", seed=range(2), window_size=100000),
+            expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-table.data", seed=range(2), window_size=100000)
 else:
     rule all:
         input:
@@ -698,12 +698,20 @@ if config["simulation_mode"] & config["skip_segmentation"]:
             bp     = "manaul_segmentation/simulation{seed}.bed"
         output: "manaul_segmentation/simulation{seed}/{window_size}-sv_probabilities.Rdata"
         params:
-            manual_segs = config["manual_segments"],
-            #window_size = {wildcards.window_size}
+            manual_segs = config["manual_segments"]
         log:
             "log/mosaiClassifier_calc_probs_manual_segments_simulation{seed}-{window_size}.log"
         script:
             "utils/mosaiClassifier.snakemake.R"
+    rule output_biallelic_likelihoods:
+        input: "manaul_segmentation/simulation{seed}/{window_size}-sv_probabilities.Rdata"
+        output:
+            data_table = "manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-table.data",
+            matrix     = "manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-matrix.data"
+        log:
+            "log/output_biallelic_likelihoods_simulation{seed}-{window_size}.log"
+        script:
+            "utils/outputBiallelicLikelihoods.snakemake.R"
 elif config["manual_segments"]:
     rule mosaiClassifier_calc_probs_manual_segs:
         input:
