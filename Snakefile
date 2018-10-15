@@ -12,6 +12,11 @@ for sample,bam in zip(SAMPLE,BAM):
     BAM_PER_SAMPLE[sample].append(bam)
     CELL_PER_SAMPLE[sample].append(bam.replace('.sort.mdup',''))
 
+if (config["simulation_mode"]):
+    for seed in config["seed"]:
+        for cell in range(config["simulation_cell_count"]):
+            CELL_PER_SAMPLE["simulation"+str(seed)].append("cell_"+str(cell))
+
 ALLBAMS_PER_SAMPLE = defaultdict(list)
 for sample in SAMPLES:
     ALLBAMS_PER_SAMPLE[sample] = glob_wildcards("bam/{}/all/{{bam}}.bam".format(sample)).bam
@@ -68,10 +73,24 @@ localrules:
     split_external_snv_calls,
     prepare_strandphaser_config_per_chrom
 
-if config["simulation_mode"] & config["skip_segmentation"]:
+if config["simulation_mode"]:
     rule all:
         input:
-            expand("segmentation/simulation{seed}/{window_size}_fixed.txt", seed=range(2), window_size=100000)
+            expand("sv_calls/simulation{seed}/{window_size}_fixed.{bpdens}/plots/sv_calls/simpleCalls.{chrom}.pdf",
+                   seed = config["seed"],
+                   chrom = config["chromosomes"],
+                   window_size = [100000],
+                   bpdens = BPDENS),
+            #expand("sv_probabilities/simulation{seed}/{window_size}_fixed.{bpdense}/probabilities.Rdata", seed=range(2), window_size=100000, bpdense=BPDENS),
+            #expand("segmentation-per-cell/simulation{seed}/cell_{cell}/{window_size}_fixed.txt", cell=range(100), seed=range(2), window_size=100000),
+            #expand("segmentation2/simulation{seed}/{window_size}_fixed.{bpdense}.txt", seed=range(2), window_size=100000, bpdense=BPDENS),
+            #expand("segmentation/simulation{seed}/{window_size}_fixed.txt", seed=range(2), window_size=100000),
+            #expand("sv_calls/simulation{seed}/{window}_fixed.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf",
+            #       seed=range(2),
+            #       chrom = config["chromosomes"],
+            #       window = [100000],
+            #       bpdens = BPDENS,
+            #       method = METHODS),
             #expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-matrix.data", seed=range(2), window_size=100000),
             #expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-table.data", seed=range(2), window_size=100000)
 else:
@@ -259,27 +278,27 @@ rule simulate_counts:
 
 rule link_to_simulated_counts:
     input:
-        counts="simulation/counts/genome{seed}-{window_size}.txt.gz",
+        #counts="simulation/counts/genome{seed}-{window_size}.txt.gz",
         info="simulation/info/genome{seed}-{window_size}.txt",
     output:
-        counts = "counts/simulation{seed}-{window_size}/{window_size}_fixed.txt.gz",
-        info   = "counts/simulation{seed}-{window_size}/{window_size}_fixed.info"
+        #counts = "counts/simulation{seed}-{window_size}/{window_size}_fixed.txt.gz",
+        #          counts/simulation{seed}/{window_size}_fixed.txt.gz
+        info   = "counts/simulation{seed}/{window_size}_fixed.info"
     run:
-        d = os.path.dirname(output.counts)
-        count_file = os.path.basename(output.counts)
+        d = os.path.dirname(output.info)
         info_file = os.path.basename(output.info)
-        shell("cd {d} && ln -s ../../{input.counts} {count_file} && ln -s ../../{input.info} {info_file} && cd ../..")
+        shell("cd {d} && ln -s ../../{input.info} {info_file} && cd ../..")
 
 
-rule link_to_simulated_strand_states:
-    input:
-        sce="simulation/sce/genome{seed}-{window_size}.txt",
-    output:
-        states="strand_states/simulation{seed}-{window_size}/final.txt",
-    run:
-        d = os.path.dirname(output.states)
-        f = os.path.basename(output.states)
-        shell("cd {d} && ln -s ../../{input.sce} {f} && cd ../..")
+#rule link_to_simulated_strand_states:
+#    input:
+#        sce="simulation/sce/genome{seed}-{window_size}.txt",
+#    output:
+#        states="strand_states/simulation{seed}-{window_size}/final.txt",
+#    run:
+#        d = os.path.dirname(output.states)
+#        f = os.path.basename(output.states)
+#        shell("cd {d} && ln -s ../../{input.sce} {f} && cd ../..")
 
 #ruleorder: link_to_simulated_counts > mosaic_count_fixed
 #ruleorder: link_to_simulated_strand_states > convert_strandphaser_output
@@ -352,15 +371,15 @@ rule plot_SV_calls:
 
 rule plot_SV_calls_simulated:
     input:
-        counts = "counts/simulation{seed}-{window}/{window}_fixed.txt.gz",
-        calls  = "sv_calls/simulation{seed}-{window}/{window}_fixed.{bpdens}/{method}.txt",
-        strand = "strand_states/simulation{seed}-{window}/final.txt",
-        segments = "segmentation2/simulation{seed}-{window}/{window}_fixed.{bpdens}.txt",
-        truth  = "simulation/variants/genome{seed}-{window}.txt"
+        counts = "counts/simulation{seed}/{window_size}_fixed.txt.gz",
+        calls  = "sv_calls/simulation{seed}/{window_size}_fixed.{bpdens}/{method}.txt",
+        strand = "strand_states/simulation{seed}/{window_size}_fixed.{bpdens}/intitial_strand_state",
+        segments = "segmentation2/simulation{seed}/{window_size}_fixed.{bpdens}.txt",
+        truth  = "simulation/phylogeny/variants/genome{seed}-{window_size}.txt"
     output:
-        "sv_calls/simulation{seed}-{window}/{window}_fixed.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_calls/{method}.{chrom}.pdf"
+        "sv_calls/simulation{seed}/{window_size}_fixed.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_calls/{method}.{chrom}.pdf"
     log:
-        "log/plot_SV_calls_simulated/simulation{seed}-{window}/{window}_fixed.{bpdens}.{method}.{chrom}.log"
+        "log/plot_SV_calls_simulated/simulation{seed}-{window_size}/{window_size}_fixed.{bpdens}.{method}.{chrom}.log"
     shell:
         """
         Rscript utils/plot-sv-calls.R \
@@ -648,7 +667,7 @@ rule mosaiClassifier_calc_probs:
     input:
         counts = "counts/{sample}/{windows}.txt.gz",
         info   = "counts/{sample}/{windows}.info",
-        states = "strand_states/{sample}/{windows}.{bpdens}/final.txt",
+        states = "strand_states/{sample}/{windows}.{bpdens}/intitial_strand_state" if config["simulation_mode"] else "strand_states/{sample}/{windows}.{bpdens}/final.txt",
         bp     = "segmentation2/{sample}/{windows}.{bpdens}.txt"
     params:
         manual_segs = config["manual_segments"]

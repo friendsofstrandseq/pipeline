@@ -23,8 +23,8 @@
         "many"      : 0.6
     },
 
-    "manual_segments" : true,
-    "skip_segmentation" : true,
+    "manual_segments" : false,
+    "skip_segmentation" : false,
 
     "paired_end"    : true,
 
@@ -50,6 +50,7 @@
     "simulation_cell_count" : 100,
     "simulation_alpha" : 0.02,
     "subclonality" : 0.25,
+    "seed" : [0, 1],
 
     "genome_size" : 3e9,
 

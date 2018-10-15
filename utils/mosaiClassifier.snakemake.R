@@ -37,6 +37,7 @@ if (is.null(bin.size)){
 	bin.size = as.numeric(snakemake@wildcards[["window_size"]])
 }
 
+
 if (snakemake@params[["manual_segs"]]){
   segs = convert_bed_to_segs_format(segs, bin.size)
 }
