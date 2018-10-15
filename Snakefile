@@ -71,8 +71,9 @@ localrules:
 if config["simulation_mode"] & config["skip_segmentation"]:
     rule all:
         input:
-            expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-matrix.data", seed=range(2), window_size=100000),
-            expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-table.data", seed=range(2), window_size=100000)
+            expand("segmentation/simulation{seed}/{window_size}_fixed.txt", seed=range(2), window_size=100000)
+            #expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-matrix.data", seed=range(2), window_size=100000),
+            #expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-table.data", seed=range(2), window_size=100000)
 else:
     rule all:
         input:
