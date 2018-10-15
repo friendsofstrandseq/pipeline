@@ -24,6 +24,9 @@ counts[, `:=`(start=start_no_sci, end=end_no_sci)]
 
 setcolorder(counts, c("chrom", "start", "end", "sample", "cell", "c", "w", "class"))
 
+# set all CW classes to WC (because mosaicatcher does not accept them)
+counts[class=="CW", class:="WC"]
+
 gz <- gzfile(snakemake@output[["counts"]], "w")
 write.table(counts, gz, sep="\t", quote=F, row.names=F)
 close(gz)
