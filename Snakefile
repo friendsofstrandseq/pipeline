@@ -76,12 +76,12 @@ localrules:
 if config["simulation_mode"]:
     rule all:
         input:
-            expand("sv_calls/simulation{seed}/{window_size}_fixed.{bpdens}/plots/sv_calls/simpleCalls.{chrom}.pdf",
-                   seed = config["seed"],
-                   chrom = config["chromosomes"],
-                   window_size = [100000],
-                   bpdens = BPDENS),
-            #expand("sv_probabilities/simulation{seed}/{window_size}_fixed.{bpdense}/probabilities.Rdata", seed=range(2), window_size=100000, bpdense=BPDENS),
+            #expand("sv_calls/simulation{seed}/{window_size}_fixed.{bpdens}/plots/sv_calls/simpleCalls.{chrom}.pdf",
+            #       seed = config["seed"],
+            #       chrom = config["chromosomes"],
+            #       window_size = [100000],
+            #       bpdens = BPDENS),
+            expand("sv_probabilities/simulation{seed}/{window_size}_fixed.{bpdense}/probabilities.Rdata", seed=range(2), window_size=100000, bpdense=BPDENS),
             #expand("segmentation-per-cell/simulation{seed}/cell_{cell}/{window_size}_fixed.txt", cell=range(100), seed=range(2), window_size=100000),
             #expand("segmentation2/simulation{seed}/{window_size}_fixed.{bpdense}.txt", seed=range(2), window_size=100000, bpdense=BPDENS),
             #expand("segmentation/simulation{seed}/{window_size}_fixed.txt", seed=range(2), window_size=100000),

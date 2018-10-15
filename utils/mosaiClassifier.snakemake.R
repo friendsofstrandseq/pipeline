@@ -42,7 +42,6 @@ if (snakemake@params[["manual_segs"]]){
   segs = convert_bed_to_segs_format(segs, bin.size)
 }
 
-
 # DEPERECATED: this version of normalization is no longer used
 # is there a normalization file given?
 if ("norm" %in% names(snakemake@input) && length(snakemake@input[["norm"]])>0) {

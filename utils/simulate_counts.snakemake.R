@@ -13,6 +13,26 @@ alpha <- snakemake@params[["alpha"]]
 bin.size <- as.numeric(snakemake@wildcards[["window_size"]])
 seed <- snakemake@wildcards[["seed"]]
 
+# FIXME: fix this sample naming problem in the simulation
+if (unique(sv[, sample]) != paste0("simulation", seed)) {
+	print(paste0("WARNING!!!! sample name in SV file is not equal to simulation", seed))
+	print("correcting the sample name")
+	sv[, sample:=paste0("simulation", seed)]
+	fwrite(sv, snakemake@input[["variants"]], sep="\t", quote=F, row.names=F)
+}
+if (unique(sce[, sample]) != paste0("simulation", seed)) {
+	print(paste0("WARNING!!!! sample name in SCE file is not equal to simulation", seed))
+	print("correcting the sample name")
+	sce[, sample:=paste0("simulation", seed)]
+	fwrite(sce, snakemake@input[["sce"]], sep="\t", quote=F, row.names=F)
+}
+if (unique(info[, sample]) != paste0("simulation", seed)) {
+	print(paste0("WARNING!!!! sample name in info file is not equal to simulation", seed))
+	print("correcting the sample name")
+	info[, sample:=paste0("simulation", seed)]
+	fwrite(info, snakemake@input[["info"]], sep="\t", quote=F, row.names=F)
+}
+
 counts <- simulateCounts(sv, sce, info, alpha, bin.size, seed)
 setkey(counts, sample, cell, chrom, start, end)
 
