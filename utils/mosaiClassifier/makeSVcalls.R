@@ -114,7 +114,7 @@ forceBiallelic <- function(probs, penalize_factor = 0.1)
 }
 
 # The following finction computes the most likely alternative allele for each segment only based on CC and WW cells
-# and outputs the normalized prob table containing only ref and alt alleles for each segment
+# and outputs the normalized prob table containing only the alt allele for each segment
 #'
 #' @author Maryam Ghareghani
 #' @export
@@ -181,6 +181,50 @@ getBiallelicLikelihoods <- function(probs)
   probs.mat[which(is.na(probs.mat))] <- 0.5
 
   return(list(probs[, -"event_name"], probs.mat))
+}
+
+#' Derives SV type with highest likelihood in each cell and segment.
+#' Output is a table with the new column "sv_call_name"
+#'
+#' @author Maryam Ghareghani
+#' @export
+#'
+getMaxLikelihoodSV <- function(probs, haplotypeMode=F) {
+  assert_that(is.data.table(probs),
+              "sample" %in% colnames(probs),
+              "cell"   %in% colnames(probs),
+              "chrom"  %in% colnames(probs),
+              "start"  %in% colnames(probs),
+              "end"    %in% colnames(probs),
+              "geno_name" %in% colnames(probs),
+              "nb_gt_ll"  %in% colnames(probs)) %>% invisible
+
+  if (haplotypeMode) {
+      assert_that(is.data.table(probs),
+              "haplo_name" %in% colnames(probs),
+              "nb_hap_ll"  %in% colnames(probs)) %>% invisible
+  }
+
+  # remove complex SVs
+  probs <- probs[geno_name!="complex"]
+
+  # order different SVs based on their likelihoods
+  if (haplotypeMode){
+    setorder(probs, chrom, start, end, sample, cell, -nb_hap_ll)
+  } else { 
+    setorder(probs, chrom, start, end, sample, cell, -nb_gt_ll)
+  }
+
+  # keep only the most likely state
+  probs <- probs[, head(.SD, 1), by=.(sample, cell, chrom, start, end)]
+
+  if (haplotypeMode){
+    colnames(probs)[which(colnames(probs)=="haplo_name")] <- "SV_class"
+  } else { 
+    colnames(probs)[which(colnames(probs)=="geno_name")] <- "SV_class"
+  }
+  
+  return(probs[SV_class!="ref_hom"])
 }
 
 #' Computes CN likelihoods and Derives CN with highest probability according in each cell and segment.

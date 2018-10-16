@@ -124,7 +124,7 @@ if (length(args)>3) {
     }
     if (grepl("^strand=", op))   f_strand = str_sub(op, 8)
     if (grepl("^complex=", op))   f_complex = str_sub(op, 9)
-    if (grepl("^singlecellsegments=", op))   f_scsegments = str_sub(op, 20)
+    if (grepl("^singlecellsegments=", op))   {f_scsegments = str_sub(op, 20)} else{f_scsegments = NULL}
     if (grepl("^no-none$", op)) show_none = F
   }
 }

@@ -57,6 +57,8 @@ BPDENS = [
     "selected_j{}_s{}".format(joint, single) for joint in [0.1,0.01] for single in [0.5,0.1]
 ]
 
+SV_CALL_TYPE = ["ML_SV_call", "ML_biallelic_SV_call"]
+
 singularity: "docker://smei/mosaicatcher-pipeline:v0.1"
 
 localrules:
@@ -76,23 +78,13 @@ localrules:
 if config["simulation_mode"]:
     rule all:
         input:
-            #expand("sv_calls/simulation{seed}/{window_size}_fixed.{bpdens}/plots/sv_calls/simpleCalls.{chrom}.pdf",
-            #       seed = config["seed"],
-            #       chrom = config["chromosomes"],
-            #       window_size = [100000],
-            #       bpdens = BPDENS),
-            expand("sv_probabilities/simulation{seed}/{window_size}_fixed.{bpdense}/probabilities.Rdata", seed=range(2), window_size=100000, bpdense=BPDENS),
-            #expand("segmentation-per-cell/simulation{seed}/cell_{cell}/{window_size}_fixed.txt", cell=range(100), seed=range(2), window_size=100000),
-            #expand("segmentation2/simulation{seed}/{window_size}_fixed.{bpdense}.txt", seed=range(2), window_size=100000, bpdense=BPDENS),
-            #expand("segmentation/simulation{seed}/{window_size}_fixed.txt", seed=range(2), window_size=100000),
-            #expand("sv_calls/simulation{seed}/{window}_fixed.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf",
-            #       seed=range(2),
-            #       chrom = config["chromosomes"],
-            #       window = [100000],
-            #       bpdens = BPDENS,
-            #       method = METHODS),
-            #expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-matrix.data", seed=range(2), window_size=100000),
-            #expand("manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-table.data", seed=range(2), window_size=100000)
+            expand("sv_calls/simulation{seed}/{window_size}_fixed.{bpdens}/plots/sv_calls/{sv_call_type}.{chrom}.pdf",
+                   seed = config["seed"],
+                   chrom = config["chromosomes"],
+                   window_size = [100000],
+                   bpdens = BPDENS,
+                   sv_call_type = SV_CALL_TYPE),
+
 else:
     rule all:
         input:
@@ -662,6 +654,16 @@ rule mosaiClassifier_make_call:
         "log/mosaiClassifier_make_call/{sample}/{window}_fixed_norm.{bpdens}.llr{llr}.poppriors{pop_priors}.haplotags{use_haplotags}.gtcutoff{gtcutoff}.regfactor{regfactor}.log"
     script:
         "utils/mosaiClassifier_call.snakemake.R"
+
+rule max_likelihood_sv_call:
+    input:
+        probs = "sv_probabilities/simulation{seed}/{window_size}_fixed.{bpdense}/probabilities.Rdata"
+    output:
+        "sv_calls/simulation{seed}/{window_size}_fixed.{bpdense}/{sv_call_type}.txt"
+    log:
+        "log/max_likelihood_sv_call_{sv_call_type}/simulation{seed}/{window_size}_fixed.{bpdense}.log"
+    script:
+        "utils/maxLikelihoodSVcall.snakemake.R"
 
 rule mosaiClassifier_calc_probs:
     input:
