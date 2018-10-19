@@ -1,28 +1,57 @@
 import math
 from collections import defaultdict
+import random
+import os.path
 
-configfile: "Snake.config.json"
+N = 3
+proportions = [(147,3), (142,8), (135,15), (120,30), (75,75), (30,120), (15,135), (8,142), (3,147)]
+targets = [
+	('WT', 'C7', count1, count2, i) for i in range(1,N+1) for count1,count2 in proportions
+]
 
-SAMPLE,BAM = glob_wildcards("bam/{sample}/selected/{bam}.bam")
-SAMPLES = sorted(set(SAMPLE))
+sample_paths = {
+	'BM510': '/MMCI/TM/scratch/strandseq/input-data/RPE-BM510/selected/',
+	'C7':    '/MMCI/TM/scratch/strandseq/input-data/C7_data/selected/',
+	'WT':    '/MMCI/TM/scratch/strandseq/input-data/RPE1-WT/selected/',
+}
+
+samples = sorted(sample_paths.keys())
+sample_cells = defaultdict(list)
+
+for sample in samples:
+	sample_cells[sample] = list(glob_wildcards(sample_paths[sample] + '{cell}.sort.mdup.bam').cell)
+
+SAMPLES = sorted(set(samples))
 
 CELL_PER_SAMPLE= defaultdict(list)
 BAM_PER_SAMPLE = defaultdict(list)
-for sample,bam in zip(SAMPLE,BAM):
-    BAM_PER_SAMPLE[sample].append(bam)
-    CELL_PER_SAMPLE[sample].append(bam.replace('.sort.mdup',''))
 
-ALLBAMS_PER_SAMPLE = defaultdict(list)
-for sample in SAMPLES:
-    ALLBAMS_PER_SAMPLE[sample] = glob_wildcards("bam/{}/all/{{bam}}.bam".format(sample)).bam
+bam_mapping = {}
+for target in targets:
+	sample1, sample2, count1, count2, seed = target
+	target_sample = '_'.join(str(x) for x in target)
+	random.seed(seed)
+	l = []
+	for sample, count in [(sample1,count1),(sample2,count2)]:
+		for cell in random.choices(sample_cells[sample], k=count):
+			source_bam = sample_paths[sample] + cell + '.sort.mdup.bam'
+			l.append((source_bam, cell))
+	random.shuffle(l)
+	for i, (source_bam, cell) in enumerate(l):
+		target_bam = 'bam/{0}/all/CELL{1:03d}.{2}.bam'.format(target_sample,i,cell)
+		bam_mapping[target_bam] = source_bam
+		c = 'CELL{0:03d}.{1}'.format(i,cell)
+		ALLBAMS_PER_SAMPLE[target_sample].append(c)
+		BAM_PER_SAMPLE[target_sample].append(c)
+		CELL_PER_SAMPLE[target_sample].append(c)
 
-print("Detected {} samples:".format(len(SAMPLES)))
+print("Simulating {} samples via cell mixing:".format(len(SAMPLES)))
 for s in SAMPLES:
     print("  {}:\t{} cells\t {} selected cells".format(s, len(ALLBAMS_PER_SAMPLE[s]), len(BAM_PER_SAMPLE[s])))
 
 
+configfile: "Snake.config.json"
 
-import os.path
 
 # Current state of the pipeline:
 # ==============================
@@ -37,34 +66,34 @@ METHODS = [
     "simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.005_regfactor6_filterFALSE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.01_regfactor6_filterFALSE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.02_regfactor6_filterFALSE",
-    "simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.03_regfactor6_filterFALSE",
+    #"simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.03_regfactor6_filterFALSE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.04_regfactor6_filterFALSE",
     "simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.05_regfactor6_filterFALSE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0_regfactor6_filterFALSE",
-    "simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.005_regfactor6_filterFALSE",
+    #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.005_regfactor6_filterFALSE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.01_regfactor6_filterFALSE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.02_regfactor6_filterFALSE",
-    "simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.03_regfactor6_filterFALSE",
+    #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.03_regfactor6_filterFALSE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.04_regfactor6_filterFALSE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.05_regfactor6_filterFALSE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0_regfactor6_filterTRUE",
     "simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.005_regfactor6_filterTRUE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.01_regfactor6_filterTRUE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.02_regfactor6_filterTRUE",
-    "simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.03_regfactor6_filterTRUE",
+    #"simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.03_regfactor6_filterTRUE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.04_regfactor6_filterTRUE",
     "simpleCalls_llr4_poppriorsTRUE_haplotagsFALSE_gtcutoff0.05_regfactor6_filterTRUE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0_regfactor6_filterTRUE",
-    "simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.005_regfactor6_filterTRUE",
+    #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.005_regfactor6_filterTRUE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.01_regfactor6_filterTRUE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.02_regfactor6_filterTRUE",
-    "simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.03_regfactor6_filterTRUE",
+    #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.03_regfactor6_filterTRUE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.04_regfactor6_filterTRUE",
     #"simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.05_regfactor6_filterTRUE",
 ]
 
 BPDENS = [
-    "selected_j{}_s{}_scedist{}".format(joint, single, scedist) for joint in [0.1] for single in [0.5] for scedist in [5,20]
+    "selected_j{}_s{}_scedist{}".format(joint, single, scedist) for joint in [0.1] for single in [0.5] for scedist in [20]
 ]
 
 singularity: "docker://smei/mosaicatcher-pipeline:v0.1"
@@ -120,6 +149,42 @@ rule all:
 #               window = [100000],
 #               bpdens = BPDENS,
 #               method = METHODS),
+
+
+rule master:
+	input:
+		bam=bam_mapping.keys(),
+		bai=[x + '.bai' for x in bam_mapping.keys()],
+
+################################################################################
+# Preparation of cell mixing BAM files                                         #
+################################################################################
+
+rule create_new_header:
+	input:
+		bam=lambda wc: bam_mapping['bam/{}/all/CELL{}.{}.bam'.format(wc.target_sample,wc.i,wc.cell)]
+	output:
+		hd=temp('bam/{target_sample}/all/CELL{i,[0-9]+}.{cell}.header.sam')
+	shell:
+		'samtools view -H {input.bam} | grep -v "^@RG" > {output.hd}'
+
+rule translate_bam:
+	input:
+		bam=lambda wc: bam_mapping['bam/{}/all/CELL{}.{}.bam'.format(wc.target_sample,wc.i,wc.cell)],
+		hd='bam/{target_sample}/all/CELL{i}.{cell}.header.sam',
+	output:
+		bam='bam/{target_sample}/all/CELL{i,[0-9]+}.{cell}.bam'
+	shell:
+		'samtools reheader {input.hd} {input.bam} | samtools addreplacerg -r "@RG\tID:CELL{wildcards.i}.{wildcards.cell}\tSM:{wildcards.target_sample}" -o {output.bam} -'
+
+rule link_selected_bam:
+	input:
+		bam='bam/{sample}/all/CELL{i,[0-9]+}.{cell}.bam'
+	output:
+		bam='bam/{sample}/selected/CELL{i,[0-9]+}.{cell}.bam'
+	run:
+		f = os.path.basename(output.bam)
+		shell('cd bam/{wildcards.sample}/selected ; ln -s ../all/{f} && cd -')
 
 
 ################################################################################
