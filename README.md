@@ -65,7 +65,7 @@ applied to all samples.
 
 This branch of the pipeline supports submitting arbitrary segments as bed input file and also simulation of Structural variations and directional Strand-seq read counts.
 
-** Submitting arbtrary segments as a bed file **
+1. **Submitting arbitrary segments as a bed file**
 This mode disables the segmentation part and gets the user-defined segmentation as an input bed file. For running the pipeline in this mode, set `manual_segments` to `true` in the `Snake.config.json` file, then a subdirectory `manaul_segmentation` and add you bed file named `sampleName.bed` there:
    ```
    cd pipeline
@@ -73,7 +73,7 @@ This mode disables the segmentation part and gets the user-defined segmentation 
    cp path/to/bed/file/bed_file.bed NA12878.bed
    ```
    
-** Submitting arbtrary segments as a bed file **
+2. **Simulation mode**
 For running the pipeline in this mode, set `simulation_mode` to `true` in the `Snake.config.json` file (Note that this value should be `false` by default for running on real data). You can also set the variables related to simulating data in the `Snake.config.json` file, such as `seed`, `subclonality`, and ...
 
 ## Installation / Execution
