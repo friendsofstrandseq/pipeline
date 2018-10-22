@@ -23,7 +23,7 @@
         "many"      : 0.6
     },
 
-    "manual_segments" : false,
+    "manual_segments" : true,
     "skip_segmentation" : false,
 
     "paired_end"    : true,
@@ -43,7 +43,7 @@
 	"900000" : 0.3,
 	"1000000" : 0.3
     },
-    "simulation_mode" : true,
+    "simulation_mode" : false,
     "simulation_min_reads_per_library" :  500000,
     "simulation_max_reads_per_library" : 1000000,
     "simulation_window_sizes" : [50000, 100000],

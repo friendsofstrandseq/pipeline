@@ -85,6 +85,14 @@ if config["simulation_mode"]:
                    bpdens = BPDENS,
                    sv_call_type = SV_CALL_TYPE),
 
+elif config["manual_segments"]:
+    rule all:
+        input:
+            expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
+                   sample = SAMPLE,
+                   window = [100000],
+                   bpdens = BPDENS),
+
 else:
     rule all:
         input:
@@ -739,24 +747,24 @@ elif config["manual_segments"]:
         input:
             counts = expand("counts/{{sample}}/{window}_fixed_norm.txt.gz", window=100000),
             info   = expand("counts/{{sample}}/{window}_fixed_norm.info", window=100000),
-            states = "strand_states/{sample}/final.txt",
+            states = "strand_states/{sample}/{windows}.{bpdens}/intitial_strand_state", #"strand_states/{sample}/final.txt",
             bp     = "manaul_segmentation/{sample}.bed"
-        output: "manaul_segmentation/{sample}/sv_probabilities.Rdata"
+        output: "manaul_segmentation/{sample}/{windows}.{bpdens}/sv_probabilities.Rdata"
         params:
             manual_segs = config["manual_segments"],
             window_size = 100000
         log:
-            "log/mosaiClassifier_calc_probs_manual_segments_{sample}.log"
+            "log/mosaiClassifier_calc_probs_manual_segments_{sample}_{windows}.{bpdens}.log"
         script:
             "utils/mosaiClassifier.snakemake.R"
 
     rule mosaiClassifier_make_CN_call_manual_segs:
         input:
-            probs = "manaul_segmentation/{sample}/sv_probabilities.Rdata"
+            probs = "manaul_segmentation/{sample}/{windows}.{bpdens}/sv_probabilities.Rdata"
         output: 
-            calls = "manaul_segmentation/{sample}/CN_calls.txt"
+            calls = "manaul_segmentation/{sample}/{windows}.{bpdens}/CN_calls.txt"
         log:
-            "log/mosaiClassifier_make_CN_call_manual_segs_{sample}.log"
+            "log/mosaiClassifier_make_CN_call_manual_segs_{sample}_{windows}.{bpdens}.log"
         script:
             "utils/mosaiClassifier_CN_call.snakemake.R"
 
