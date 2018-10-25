@@ -7,6 +7,7 @@ attach_random_tree_nodes_to_svs <- function(genome, phylo.tree, subclonality, se
 
 	############ attach SVs to tree nodes
 	# get the fraction of the subclonal SVs
+	num.svs <- nrow(genome)
 	num.subclonal.svs <- floor(subclonality*num.svs)
 
 	# sample a set of subclonal SVs uniformly
@@ -27,7 +28,7 @@ attach_random_tree_nodes_to_svs <- function(genome, phylo.tree, subclonality, se
 	# reassign nodes to the sub_clonal SVs
 	genome[!(is_clonal), sv_tree_node:=sort(sampled.nodes)]
 
-	return(genome)
+	return(list(genome=genome, svs=sampled.svs, nodes=sampled.nodes))
 }
 
 create_sv_file <- function(genome, phylo.tree, seed, window.size) {

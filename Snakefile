@@ -151,8 +151,10 @@ rule simulate_lineage_tree_and_svs:
         genome = "simulation/genome/genome{seed}.tsv"
     output:
         tree = "simulation/phylogeny/lineage_tree{seed}.newick",
-        edges = "simulation/phylogeny/lineage_tree_edges{seed}.newick",
-        genome = "simulation/phylogeny/genome/genome{seed}.tsv"
+        edges = "simulation/phylogeny/lineage_tree_edges{seed}.tsv",
+        genome = "simulation/phylogeny/genome/genome{seed}.tsv",
+        svs = "simulation/phylogeny/genome/subclonal_svs{seed}.tsv",
+        nodes = "simulation/phylogeny/genome/internal_sv_nodes{seed}.tsv"
     params:
         cell_count = config["simulation_cell_count"],
         subclonality = config["subclonality"]
