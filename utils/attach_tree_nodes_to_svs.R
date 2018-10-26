@@ -1,4 +1,8 @@
 attach_random_tree_nodes_to_svs <- function(genome, phylo.tree, subclonality, seed) {
+
+	# kick out false-dels
+	genome <- genome[SV_type!="false_del"]
+
 	# get the root
 	root <- setdiff(phylo.tree$edge[,1], phylo.tree$edge[,2])
 
