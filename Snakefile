@@ -81,7 +81,13 @@ if config["simulation_mode"]:
             expand("sv_calls/simulation{seed}/{window_size}_fixed.{bpdens}/plots/sv_calls/{sv_call_type}.{chrom}.pdf",
                    seed = config["seed"],
                    chrom = config["chromosomes"],
-                   window_size = [100000],
+                   window_size = config["simulation_window_sizes"],
+                   bpdens = BPDENS,
+                   sv_call_type = SV_CALL_TYPE),
+            expand("sv_probabilities/simulation{seed}/{window_size}_fixed.{bpdens}/biallelic-likelihood-table.data",
+                   seed = config["seed"],
+                   chrom = config["chromosomes"],
+                   window_size = config["simulation_window_sizes"],
                    bpdens = BPDENS,
                    sv_call_type = SV_CALL_TYPE),
 
@@ -690,15 +696,18 @@ rule mosaiClassifier_calc_probs:
     script:
         "utils/mosaiClassifier.snakemake.R"
 
-rule mosaiClassifier_make_call_biallelic:
-    input:
-        probs = "sv_probabilities/{sample}/{windows}.{bpdens}/probabilities.Rdata"
+rule output_biallelic_likelihoods:
+    input: "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/probabilities.Rdata"
     output:
-        "sv_calls/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biAllelic_llr{llr}.txt"
+        data_table = "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biallelic-likelihood-table.data",
+        matrix     = "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biallelic-likelihood-matrix.data",
+        matrix_rownames     = "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biallelic-likelihood-matrix-rownames.data"
+    params:
+        reg_factor = config["alt_allele_ll_reg_factor"]
     log:
-        "log/mosaiClassifier_make_call_biallelic/{sample}/{windows}.{bpdens}.{llr}.log"
+        "log/output_biallelic_likelihoods_{sample}-{windows}-{bpdens}.log"
     script:
-        "utils/mosaiClassifier_call_biallelic.snakemake.R"
+        "utils/outputBiallelicLikelihoods.snakemake.R"
 
 rule call_complex_regions:
     input:
@@ -739,7 +748,8 @@ if config["simulation_mode"] & config["skip_segmentation"]:
         input: "manaul_segmentation/simulation{seed}/{window_size}-sv_probabilities.Rdata"
         output:
             data_table = "manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-table.data",
-            matrix     = "manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-matrix.data"
+            matrix     = "manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-matrix.data",
+            matrix_rownames     = "sv_probabilities/{sample}/{windows}-biallelic-likelihood-matrix-rownames.data"
         log:
             "log/output_biallelic_likelihoods_simulation{seed}-{window_size}.log"
         script:

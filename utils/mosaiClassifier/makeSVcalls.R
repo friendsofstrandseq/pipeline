@@ -120,7 +120,7 @@ forceBiallelic <- function(probs, penalize_factor = 0.1)
 #' @export
 #'
 
-getBiallelicLikelihoods <- function(probs)
+getBiallelicLikelihoods <- function(probs, reg.factor)
 {
   # remove complex SVs
   probs <- probs[geno_name != "complex"]
@@ -171,7 +171,12 @@ getBiallelicLikelihoods <- function(probs)
 
   ### convert probs table to a wide matrix
   # define a column for SV event names
-  probs[, event_name:=paste0(sample, "_", chrom, "_", start, "_", end, "_", alt_allele)]
+  probs[, event_name:=paste0(chrom, "_", start, "_", end, "_", alt_allele)]
+
+  # regularize probs table
+  # The underlying assumption is that there is a uniform distrubution (on ref and alt alleles) with reg.factor probability
+  probs[, nb_gt_ll:=.((reg.factor/2)+nb_gt_ll*(1-reg.factor))]
+  
   probs.mat <- dcast(probs, event_name~cell, value.var="nb_gt_ll")
   event_names <- probs.mat$event_name
   probs.mat <- as.matrix(probs.mat[,2:ncol(probs.mat)])
