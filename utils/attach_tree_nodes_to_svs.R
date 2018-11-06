@@ -1,4 +1,4 @@
-attach_random_tree_nodes_to_svs <- function(genome, phylo.tree, subclonality, seed) {
+attach_random_tree_nodes_to_svs <- function(genome, phylo.tree, subclonality, seed, min.subclonal.sv.size=0) {
 
 	# kick out false-dels
 	genome <- genome[SV_type!="false_del"]
@@ -11,12 +11,17 @@ attach_random_tree_nodes_to_svs <- function(genome, phylo.tree, subclonality, se
 
 	############ attach SVs to tree nodes
 	# get the fraction of the subclonal SVs
+	
+	# get a subset of large SVs
+	sv.large <- which(genome[,end-start] >= min.subclonal.sv.size)
+
+	# limit subclonal SVs to be only the SVs larger than min.subclonal.sv.size
 	num.svs <- nrow(genome)
-	num.subclonal.svs <- floor(subclonality*num.svs)
+	num.subclonal.svs <- min(floor(subclonality*num.svs), length(sv.large))
 
 	# sample a set of subclonal SVs uniformly
 	set.seed(seed)
-	sampled.svs <- sample(1:nrow(genome), size = num.subclonal.svs)
+	sampled.svs <- sample(sv.large, size = num.subclonal.svs)
 
 	# sample a set of internal nodes for attaching SVs
 	set.seed(seed)

@@ -163,7 +163,8 @@ rule simulate_lineage_tree_and_svs:
         nodes = "simulation/phylogeny/genome/internal_sv_nodes{seed}.tsv"
     params:
         cell_count = config["simulation_cell_count"],
-        subclonality = config["subclonality"]
+        subclonality = config["subclonality"],
+	min_subclonal_sv_size = config["min_subclonal_sv_size"]
     log:
         "log/simulate_lineage_tree/lineage_tree{seed}.log"
     script:
@@ -676,6 +677,8 @@ rule max_likelihood_sv_call:
         probs = "sv_probabilities/simulation{seed}/{window_size}_fixed.{bpdense}/probabilities.Rdata"
     output:
         "sv_calls/simulation{seed}/{window_size}_fixed.{bpdense}/{sv_call_type}.txt"
+    params:
+        alt_allele_ll_reg_factor = config["alt_allele_ll_reg_factor"]
     log:
         "log/max_likelihood_sv_call_{sv_call_type}/simulation{seed}/{window_size}_fixed.{bpdense}.log"
     script:

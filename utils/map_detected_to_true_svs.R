@@ -69,6 +69,7 @@ biall.probs[, sv_status:=ifelse(is.na(is.clonal),"no_sv", ifelse(is.clonal, "clo
 biall.probs <- biall.probs[, -"is.clonal"]
 
 biall.probs[, agg_log_ll:=sum(log(nb_gt_ll)), by=.(sample, chrom, start, end)]
+biall.probs <- biall.probs[order(end-start)]
 
 #biall.probs[, is_true_sv := paste0(chrom, "_", start, "_", end, "_", alt_allele) %in% overlap[, pred.sv]]
 #setkey(biall.probs.mat, is_true_sv)
@@ -76,12 +77,16 @@ true.sv.heatmap <- ggplot(biall.probs[sv_status!="no_sv"], aes(cell,paste0(chrom
 false.sv.heatmap <- ggplot(biall.probs[sv_status=="no_sv"], aes(cell,paste0(chrom, "_", start, "_", end, "_", alt_allele))) + geom_tile(aes(fill=nb_gt_ll), color="white") + scale_fill_gradient(low="white", high="steelblue")
 ggarrange(true.sv.heatmap, false.sv.heatmap, nrow=1, ncol=2)
 
+biall.probs[, biall_ll_sum:=sum(nb_gt_ll), by=.(sample, chrom, start, end)]
+biall.probs[, biall_ll_avg_by_class:=sum(nb_gt_ll)/(.N), by=.(sample, chrom, start, end, class)]
+
 min.alt.ll.cutoff <- c(0.5, 0.6, 0.7, 0.8, 0.9)
 for (i in min.alt.ll.cutoff) {
   biall.probs[, paste0("num_cells_passed_cutoff_", i):=nrow(.SD[nb_gt_ll > i]), by=.(sample, chrom, start, end)]
 }
 
 biall.probs.agg <- biall.probs[, head(.SD,1), by=.(sample, chrom, start, end)]
+biall.probs.agg.by.class <- biall.probs[, head(.SD,1), by=.(sample, chrom, start, end, class)]
 
 plt.cutoff0.5 <- ggplot(biall.probs.agg, aes(x=num_cells_passed_cutoff_0.5, y = ..density.., col=sv_status))+geom_freqpoly()+ggtitle("num_cells_passed_cutoff_0.5")
 plt.cutoff0.6 <- ggplot(biall.probs.agg, aes(x=num_cells_passed_cutoff_0.6, y = ..density.., col=sv_status))+geom_freqpoly()+ggtitle("num_cells_passed_cutoff_0.6")
@@ -93,6 +98,10 @@ plt.agg.ll <- ggplot(biall.probs.agg, aes(x=exp(agg_log_ll), y = ..density.., co
 
 plt.save <- ggarrange(plt.cutoff0.5, plt.cutoff0.6, plt.cutoff0.7, plt.cutoff0.8, plt.cutoff0.9, plt.agg.log.ll, nrow=3, ncol=2)
 ggsave(plt.save+theme(plot.title=element_text(hjust=0.5)), file="comparative_plots.pdf")
+
+# plots for sum ll
+noSV.sumLL.400000.plt <- ggplot(biall.probs.agg[sv_status=="no_sv" & end-start>400000], aes(x=biall_ll_sum, fill=alt_allele))+geom_histogram()+ggtitle("noSV sumLL in segs larger than 400kb")
+noSV.avgLL.400000.byClass.plt <- ggplot(biall.probs.agg.by.class[sv_status=="no_sv" & end-start>400000], aes(x=biall_ll_avg_by_class, fill=alt_allele))+geom_histogram()+facet_grid(~class)+ggtitle("noSV sumLL in segs larger than 400kb")
 
 # keep only the segments where the fraction of cells with alt allele prob at least 0.9 are between 0.2 and 0.8
 biall.probs.agg <- biall.probs.agg[num_cells_passed_cutoff_0.9 > 0.2*num.cells & num_cells_passed_cutoff_0.9 < 0.8*num.cells]

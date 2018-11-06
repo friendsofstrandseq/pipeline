@@ -6,9 +6,10 @@ library(data.table)
 source("utils/mosaiClassifier/makeSVcalls.R")
 
 probs <- readRDS(snakemake@input[[1]])
+reg.factor <- snakemake@params[["alt_allele_ll_reg_factor"]]
 
 if (snakemake@wildcards[["sv_call_type"]]=="ML_biallelic_SV_call"){
-  probs.biall <- getBiallelicLikelihoods(probs)
+  probs.biall <- getBiallelicLikelihoods(probs, reg.factor)
   probs <- probs.biall[[1]][nb_gt_ll > 0.5]
   colnames(probs)[which(colnames(probs)=="alt_allele")] <- "geno_name"
 }

@@ -50,7 +50,8 @@
     "simulation_cell_count" : 100,
     "simulation_alpha" : 0.02,
     "subclonality" : 0.25,
-    "seed" : [2],
+    "min_subclonal_sv_size": 500000,
+    "seed" : [3,4,5],
     "alt_allele_ll_reg_factor" : 0.001,
 
     "genome_size" : 3e9,

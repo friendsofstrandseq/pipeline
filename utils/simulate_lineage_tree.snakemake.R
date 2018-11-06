@@ -10,6 +10,7 @@ source("utils/attach_tree_nodes_to_svs.R")
 seed <- snakemake@wildcards[["seed"]]
 num.cells <- snakemake@params[["cell_count"]]
 subclonality <- snakemake@params[["subclonality"]]
+min.subclonal.sv.size <- snakemake@params[["min_subclonal_sv_size"]]
 genome <- fread(snakemake@input[["genome"]])
 
 # name the genome columns
@@ -23,7 +24,7 @@ phylo.tree <- rtree(num.cells, tip.label = paste0("cell_", 1:num.cells-1))
 phylo.tree$edge.length <- NULL
 
 # attach tree nodes to SVs
-tree.based.svs <- attach_random_tree_nodes_to_svs(genome, phylo.tree, subclonality, seed)
+tree.based.svs <- attach_random_tree_nodes_to_svs(genome, phylo.tree, subclonality, seed, min.subclonal.sv.size)
 print(class(tree.based.svs))
 genome <- tree.based.svs[["genome"]]
 sampled.svs <- tree.based.svs[["svs"]]
