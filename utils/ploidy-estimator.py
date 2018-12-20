@@ -1,3 +1,7 @@
+#################
+# TM_ploidy_adap_001
+#################
+
 #!/usr/bin/env python
 
 import sys
@@ -7,10 +11,14 @@ import scipy.stats
 import math
 from scipy.stats import binom
 from argparse import ArgumentParser
+import matplotlib.pyplot as plt
+import numpy as np
+plt.switch_backend('agg')
 
-def read_wc_fractions(filename, chunksize, min_count, chromosome):
+def read_wc_fractions(filename, chunksize, min_count, chromosome, ROI_start, ROI_end):
 	last_chrom = None
 	start = None
+	print(ROI_start, ROI_end)
 	for i, line in enumerate(gzip.open(filename)):
 		if i == 0:
 			fieldnames = list(x.decode() + '_' for x in line.split())
@@ -25,6 +33,11 @@ def read_wc_fractions(filename, chunksize, min_count, chromosome):
 				c_sum = 0
 			if chromosome is not None:
 				if chromosome != fields.chrom_:
+					continue
+			if ROI_start is not None:
+				if  int(fields.start_) <= int(ROI_start):
+					continue
+				if int(fields.start_)  >= int(ROI_end):
 					continue
 			w_sum += float(fields.w_)
 			c_sum += float(fields.c_)
@@ -54,9 +67,12 @@ class Mixture:
 		l = 0.0
 		for x in X:
 			p = sum(w*scipy.stats.norm.pdf(x, loc=m, scale=stddev) for m,stddev,w in zip(self.means,self.stddevs,self.weights))
+			#for u in [scipy.stats.norm.pdf(x, loc=m, scale=stddev) for m,stddev,w in zip(self.means,self.stddevs,self.weights)]:
+			#	print(u)
+			#print(p)
 			#print(x, p, math.log(p))
 			l += math.log(p)
-		return l
+		return l, self.stddevs
 
 	def fit_stddevs(self,X):
 		print(self.stddevs, file=sys.stderr)
@@ -99,7 +115,7 @@ class Mixture:
 
 	def fit_stddevs_meanprop(self,X):
 		'''Fit standard deviations so that they are proportional to the means'''
-		print(self.stddevs, file=sys.stderr)
+		#print(self.stddevs, file=sys.stderr)
 		n = 0
 		v = 1.0
 		while True:
@@ -113,9 +129,9 @@ class Mixture:
 			diff = abs(v - new_v)
 			v = new_v
 			self.stddevs = [v*m for m in self.weights]
-			print(self.stddevs, file=sys.stderr)
+			#print(self.stddevs, file=sys.stderr)
 			if diff <= 1e-10: 
-				print('Estimated variances in', n, 'iterations', file=sys.stderr)
+				#print('Estimated variances in', n, 'iterations', file=sys.stderr)
 				break
 
 
@@ -127,6 +143,10 @@ def main():
 		help='Ignore chunks with fewer reads (default=1,000)')
 	parser.add_argument('--chromosome', default=None,
 		help='Restrict analysis to one chromosome (default: whole genome)')
+	parser.add_argument('--ROI_start', default=None,
+		help='Region of interest to consider (start,end) (default= whole chromosome/genome)')
+	parser.add_argument('--ROI_end', default=None,
+		help='Region of interest to consider (start,end) (default= whole chromosome/genome)')
 	parser.add_argument('--max-ploidy', default=4, type=int,
 		help='Maximum ploidy to consider (default=4)')
 	parser.add_argument('filename', metavar='COUNT', help='Gzipped, tab-separated table with counts')
@@ -138,28 +158,44 @@ def main():
 
 	print('='* 100, args.filename, file=sys.stderr)
 	print('Processing file', args.filename, file=sys.stderr)
-	fractions = list(read_wc_fractions(args.filename, chunksize=args.chunksize, min_count=args.min_count_per_chunk, chromosome=args.chromosome))
+	fractions = list(read_wc_fractions(args.filename, chunksize=args.chunksize, min_count=args.min_count_per_chunk, chromosome=args.chromosome, ROI_start=args.ROI_start, ROI_end=args.ROI_end))
 	print('Found', len(fractions), 'segments', file=sys.stderr)
-	
+
 	output = [args.filename, 'ALL']
 	for ploidy in range(1,args.max_ploidy+1):
-		print('-'* 100, 'ploidy', ploidy, file=sys.stderr)
+		#print('-'* 100, 'ploidy', ploidy, file=sys.stderr)
 		
 		means = [i/ploidy for i in range(ploidy+1)]
 		binom_dist = binom(ploidy,0.5)
 		weights = [binom_dist.pmf(i) for i in range(ploidy+1)]
 		
-		print('Means:', means, file=sys.stderr)
-		print('Weights:', weights, file=sys.stderr)
+		#print('Means:', means, file=sys.stderr)
+		#print('Weights:', weights, file=sys.stderr)
 		
-		print('Fitting variances', file=sys.stderr)
+		#print('Fitting variances', file=sys.stderr)
 		mixture = Mixture(means=means, weights=weights)
 		#mixture.fit_stddevs_same(fractions)
 		mixture.fit_stddevs_meanprop(fractions)
-		likelihood = mixture.log_likelihood(fractions)
-		print('Likelihood:', likelihood, file=sys.stderr)
-		output.append(str(likelihood))
+		likelihood, out_stdev = mixture.log_likelihood(fractions)
+		#print('Likelihood:', likelihood, file=sys.stderr)
+		print('output log(p)', likelihood)
+		print('stdev', out_stdev)
+		print('weights', weights)
 
+		output.append(str(likelihood))
+		### Plotting ###
+		xplot = np.arange(-0.5,1.5,0.005)
+		for j in range(len(means)):
+			#pdfx = weights[j]*scipy.stats.norm.pdf(xplot, loc=means[j], scale=(out_stdev[j]))
+			#plt.plot(xplot, pdfx, label='pdf{}'.format(str(j)))
+			for fraction in fractions:
+				#plt.axvline(x=fraction)
+				plt.hist(x=fraction)
+				print('fraction',fraction)
+		plt.legend()
+		plt.title(str(weights))
+		plt.savefig("ploidy_pdf_plot_pdf{}.png".format(str(int(ploidy))))
+		plt.clf()
 	print('\t'.join(output))
 
 	#print('Fitting variances for tetraploid mixture', file=sys.stderr)
