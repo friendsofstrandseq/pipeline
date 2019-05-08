@@ -11,3 +11,6 @@ snv_calls/
 strand_states/
 sv_probabilities/
 Snakefile~
+
+# PyCharm idea folder
+.idea/
