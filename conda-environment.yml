@@ -249,3 +249,5 @@ dependencies:
   - bcrypt=3.1.4=py36h14c3975_0
   - datrie=0.7.1=py36_0
   - wget=1.19.5=h1ad7b7a_0
+  - pip:
+      - intervaltree==3.0.2

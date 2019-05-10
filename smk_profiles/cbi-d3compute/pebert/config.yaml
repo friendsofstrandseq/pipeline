@@ -1,0 +1,8 @@
+# Default runtime profile for TM infrastructure / D3 compute server
+
+directory: /MMCI/TM/scratch/pebert/sctrip_pipeline
+cores: 48
+latency-wait: 5
+keep-going: True
+rerun-incomplete: False
+restart-times: 0

@@ -1,0 +1,3 @@
+# Execute in Snakefile folder
+
+snakemake --configfile snake_config.json --profile smk_profiles/cbi-d3compute/pebert

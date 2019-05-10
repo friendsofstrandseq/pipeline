@@ -226,17 +226,31 @@ ruleorder: link_to_simulated_strand_states > convert_strandphaser_output
 
 rule estimate_ploidy:
     input:
-        "counts/{sample}/100000_fixed.txt.gz"
+        counts = "counts/{sample}/{window}_fixed_norm.txt.gz",
+        blacklist = "normalizations/HGSVC.{window}.merged.tsv"
     output:
-        "ploidy/{sample}/ploidy.{chrom}.txt"
+        "ploidy/{sample}/ploidy_estimate.{window}.wg.txt"
     log:
-        "log/estimate_ploidy/{sample}/{chrom}.log"
-    shell:
-        """
-        PYTHONPATH="" # Issue #1031 (https://bitbucket.org/snakemake/snakemake/issues/1031)
-        python utils/ploidy-estimator.py --chromosome {wildcards.chrom} {input} > {output} 2> {log}
-        """
-
+        "log/estimate_ploidy/{sample}/ploidy_estimate.{window}.wg.log"
+    threads: 48
+    params:
+        # TODO move this to config
+        merge_window = 1000000,
+        shift_step = 500000,
+        boundary_alpha = 0.05,
+        max_ploidy = 6,
+        add_bg_component = 'to_be_done'
+    run:
+        exec = 'utils/ploidy-estimator.py --debug'
+        exec += ' --merge-bins-to {params.merge_window}'
+        exec += ' --shift-window-by {params.shift_step}'
+        exec += ' --max-ploidy {params.max_ploidy}'
+        exec += ' --boundary-alpha {params.boundary_alpha}'
+        exec += ' --jobs {threads}'
+        exec += ' --blacklist-regions {input.blacklist}'
+        exec += ' --input {input.counts}'
+        exec += ' --output {output}'
+        shell(exec)
 
 
 ################################################################################
