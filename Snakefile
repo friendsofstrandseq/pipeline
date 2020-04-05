@@ -94,10 +94,12 @@ if config["simulation_mode"]:
 elif config["manual_segments"]:
     rule all:
         input:
-            expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
-                   sample = SAMPLE,
-                   window = [100000],
-                   bpdens = BPDENS),
+            #expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
+            #       sample = SAMPLE,
+            #       window = [100000],
+            #       bpdens = BPDENS),
+            expand("counts/{sample}/manual_segments_counts.txt.gz", sample = SAMPLE),
+
 
 else:
     rule all:
@@ -509,6 +511,46 @@ if not config["simulation_mode"]:
                 {input.bam} \
             > {log} 2>&1
             """
+
+if config["manual_segments"]:
+	rule count_reads:
+		input:
+		    bam = "bam/{sample}/selected/{bam}.bam",
+		    bai = "bam/{sample}/selected/{bam}.bam.bai",
+		    bed = "manaul_segmentation/{sample}.bed",
+		output:
+		    w_counts = "counts/{sample}/manual_segments_{bam}_w_counts.txt",
+		    c_counts = "counts/{sample}/manual_segments_{bam}_c_counts.txt",
+		log:
+		    "log/{sample}/count_reads_{bam}.log"
+		shell:
+		    """
+		    (time
+		    bedtools intersect -nonamecheck -a {input.bed} -b <(samtools view -Sb -f 16 {input.bam}) -c > {output.w_counts} && \
+		    bedtools intersect -nonamecheck -a {input.bed} -b <(samtools view -Sb -F 16 {input.bam}) -c > {output.c_counts} ) \
+		    > {log} 2>&1
+		    """
+
+	rule merge_count_files:
+		input:
+		    w_counts = lambda wc: expand("counts/" + wc.sample + "/manual_segments_{bam}_w_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+		    c_counts = lambda wc: expand("counts/" + wc.sample + "/manual_segments_{bam}_c_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+		output: "counts/{sample}/manual_segments_counts.txt.gz",
+		log:
+		    "log/{sample}/merge_count_files.log"
+		#shell:"cat {input} | gzip -c > {output}"
+		script:"utils/merge_count_files.snakemake.R"
+
+#	rule pysam_count_reads:
+#		input:
+#		    bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in #BAM_PER_SAMPLE else "FOOBAR",
+#		    bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in #BAM_PER_SAMPLE else "FOOBAR",
+#		    bed = "manaul_segmentation/{sample}.bed",
+#		output: "counts/{sample}/manual_segments_counts.txt.gz",
+#		log:
+#		    "log/{sample}/merge_count_files.log"
+#		script:"utils/pysam_count_files.py"
+
 
 rule extract_single_cell_counts:
     input:
