@@ -57,6 +57,7 @@ BPDENS = [
     "selected_j{}_s{}".format(joint, single) for joint in [0.1,0.01] for single in [0.5,0.1]
 ]
 
+
 SV_CALL_TYPE = ["ML_SV_call", "ML_biallelic_SV_call"]
 
 singularity: "docker://smei/mosaicatcher-pipeline:v0.1"
@@ -94,11 +95,11 @@ if config["simulation_mode"]:
 elif config["manual_segments"]:
     rule all:
         input:
-            #expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
-            #       sample = SAMPLE,
-            #       window = [100000],
-            #       bpdens = BPDENS),
-            expand("counts/{sample}/manual_segments_counts.txt.gz", sample = SAMPLE),
+            expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
+                   sample = SAMPLES,
+                   window = [100000],
+                   bpdens = BPDENS),
+            #expand("counts/{sample}/manual_segments_counts.txt", sample = SAMPLES),
 
 
 else:
@@ -107,7 +108,7 @@ else:
             expand("plots/{sample}/{window}_fixed.pdf",      sample = SAMPLES, window = [50000, 100000, 200000, 500000]),
             expand("plots/{sample}/{window}_fixed_norm.pdf", sample = SAMPLES, window = [50000, 100000, 200000]),
             expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf",
-                   sample = SAMPLE,
+                   sample = SAMPLES,
                    chrom = config["chromosomes"],
                    window = [100000],
                    bpdens = BPDENS,
@@ -535,7 +536,7 @@ if config["manual_segments"]:
 		input:
 		    w_counts = lambda wc: expand("counts/" + wc.sample + "/manual_segments_{bam}_w_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
 		    c_counts = lambda wc: expand("counts/" + wc.sample + "/manual_segments_{bam}_c_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
-		output: "counts/{sample}/manual_segments_counts.txt.gz",
+		output: "counts/{sample}/manual_segments_counts.txt",
 		log:
 		    "log/{sample}/merge_count_files.log"
 		#shell:"cat {input} | gzip -c > {output}"
@@ -731,7 +732,7 @@ rule mosaiClassifier_calc_probs:
         counts = "counts/{sample}/{windows}.txt.gz",
         info   = "counts/{sample}/{windows}.info",
         states = "strand_states/{sample}/{windows}.{bpdens}/intitial_strand_state" if config["simulation_mode"] else "strand_states/{sample}/{windows}.{bpdens}/final.txt",
-        bp     = "segmentation2/{sample}/{windows}.{bpdens}.txt"
+        bp = "counts/{sample}/manual_segments_counts.txt" if config["manual_segments"] else "segmentation2/{sample}/{windows}.{bpdens}.txt"
     params:
         manual_segs = config["manual_segments"]
     output:
