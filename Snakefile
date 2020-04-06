@@ -520,8 +520,8 @@ if config["manual_segments"]:
 		    bai = "bam/{sample}/selected/{bam}.bam.bai",
 		    bed = "manaul_segmentation/{sample}.bed",
 		output:
-		    w_counts = "counts/{sample}/manual_segments_{bam}_w_counts.txt",
-		    c_counts = "counts/{sample}/manual_segments_{bam}_c_counts.txt",
+		    w_counts = temp("counts/{sample}/manual_segments_{bam}_w_counts.txt"),
+		    c_counts = temp("counts/{sample}/manual_segments_{bam}_c_counts.txt"),
 		log:
 		    "log/{sample}/count_reads_{bam}.log"
 		shell:
@@ -534,8 +534,8 @@ if config["manual_segments"]:
 
 	rule merge_count_files:
 		input:
-		    w_counts = lambda wc: expand("counts/" + wc.sample + "/manual_segments_{bam}_w_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
-		    c_counts = lambda wc: expand("counts/" + wc.sample + "/manual_segments_{bam}_c_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+		    w_counts = lambda wc: temp(expand("counts/" + wc.sample + "/manual_segments_{bam}_w_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR"),
+		    c_counts = lambda wc: temp(expand("counts/" + wc.sample + "/manual_segments_{bam}_c_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR"),
 		output: "counts/{sample}/manual_segments_counts.txt",
 		log:
 		    "log/{sample}/merge_count_files.log"
