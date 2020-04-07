@@ -33,14 +33,12 @@ info   = fread(snakemake@input[["info"]])
 strand = fread(snakemake@input[["states"]])
 segs   = fread(snakemake@input[["bp"]])
 bin.size = snakemake@params[["window_size"]]
+
+
 if (is.null(bin.size)){
 	bin.size = as.numeric(snakemake@wildcards[["window_size"]])
 }
 
-
-if (snakemake@params[["manual_segs"]]){
-  segs = convert_bed_to_segs_format(segs, bin.size)
-}
 
 # DEPERECATED: this version of normalization is no longer used
 # is there a normalization file given?
@@ -60,6 +58,6 @@ if ("CW" %in% strand$class) {
 }
 
 d = mosaiClassifierPrepare(counts, info, strand, segs, manual.segs=snakemake@params[["manual_segs"]])
-e = mosaiClassifierCalcProbs(d, maximumCN = 4, haplotypeMode = haplotypeMode)
+e = mosaiClassifierCalcProbs(d, maximumCN = 4, haplotypeMode = haplotypeMode, manual.segs=snakemake@params[["manual_segs"]])
 
 saveRDS(e, file = snakemake@output[[1]])

@@ -95,44 +95,52 @@ mosaiClassifierPrepare <- function(counts, info, strand, segs, normVector = NULL
                        by = .(sample, cell)],
                 by = c("sample","cell")) )
 
+	if (manual.segs) {
+		probs <- merge(segs, info[,.(sample, cell, nb_p, mean)], by=c("sample", "cell"))
+		message("[MosaiClassifier] Annotating strand-state")
+		probs = addStrandStates(probs, strand)
+		probs[, expected:=mean*(end-start)/bin.size, by=.(sample, cell)]
+	}
+	else {
+		##############################################################################
+		# Expand table to (all cells) x (all segments)
+		#
+		# Go from 0-based coordinates to 1-based bin coordinates
+		segs[, to := bps + 1L]
 
-  
-	##############################################################################
-	# Expand table to (all cells) x (all segments)
-	#
-	# Go from 0-based coordinates to 1-based bin coordinates
-	segs[, to := bps + 1L]
+		# add a "from" column which contians the "to" breakpoint from the prev. segment each
+		segs[, from := (data.table::shift(to,fill = 0L) + 1L), by = chrom]
 
-	# add a "from" column which contians the "to" breakpoint from the prev. segment each
-	segs[, from := (data.table::shift(to,fill = 0L) + 1L), by = chrom]
-
-	# remove columns "bps" and "k"
-	segs[, `:=`(bps = NULL, k = NULL)]
-
-
-
-	# Add coordinates
-	addPositions(segs, counts)
-
-	# Expand the table to (cells) x (segments) and annotate with NB params
-	# --> take each row in "segs" and cbind it to a whole "info" table
-	probs <- segs[,
-			cbind(.SD, info[,.(sample, cell, nb_p, mean)]),
-			by = .(chrom,from)]
+		# remove columns "bps" and "k"
+		segs[, `:=`(bps = NULL, k = NULL)]
 
 
-	##############################################################################
-	# Annotate each segment and cell with the strand state
-	#
-	message("[MosaiClassifier] Annotating strand-state")
-	probs = addStrandStates(probs, strand)
 
-	##############################################################################
-	# Annotate the observed and expected counts in each segment / cell
-	#
-	message("[MosaiClassifier] Annotating observed W/C counts")
-	probs <- addCountsPerSegment(probs, counts, manual.segs)
-  
+
+		# Add coordinates
+		addPositions(segs, counts)
+
+		# Expand the table to (cells) x (segments) and annotate with NB params
+		# --> take each row in "segs" and cbind it to a whole "info" table
+		probs <- segs[,
+				cbind(.SD, info[,.(sample, cell, nb_p, mean)]),
+				by = .(chrom,from)]
+
+
+		##############################################################################
+		# Annotate each segment and cell with the strand state
+		#
+		message("[MosaiClassifier] Annotating strand-state")
+		probs = addStrandStates(probs, strand)
+
+		##############################################################################
+		# Annotate the observed and expected counts in each segment / cell
+		#
+		message("[MosaiClassifier] Annotating observed W/C counts")
+		probs <- addCountsPerSegment(probs, counts, manual.segs)
+		probs[, `:=`(from = NULL,
+               to   = NULL,)]
+  }
 
   # Add normalization factors to the expected counts ("scalar")
   if (!is.null(normVector)) {
@@ -143,9 +151,7 @@ mosaiClassifierPrepare <- function(counts, info, strand, segs, normVector = NULL
   }
 
 
-  probs[, `:=`(from = NULL,
-               to   = NULL,
-               mean = NULL)]
+  probs[, mean := NULL]
   
   return(probs)
   
@@ -154,7 +160,7 @@ mosaiClassifierPrepare <- function(counts, info, strand, segs, normVector = NULL
 
 
 
-mosaiClassifierCalcProbs <- function(probs, maximumCN=4, haplotypeMode=F, alpha=0.05, definedHapStatus=FALSE, hapStatus=NULL) {
+mosaiClassifierCalcProbs <- function(probs, maximumCN=4, haplotypeMode=F, alpha=0.05, definedHapStatus=FALSE, hapStatus=NULL, manual.segs=FALSE) {
 
   assert_that(is.data.table(probs),
               "sample" %in% colnames(probs),
@@ -164,13 +170,16 @@ mosaiClassifierCalcProbs <- function(probs, maximumCN=4, haplotypeMode=F, alpha=
               "end"    %in% colnames(probs),
               "nb_p"   %in% colnames(probs),
               "expected"     %in% colnames(probs),
-              "num_bins"     %in% colnames(probs),
               "scalar" %in% colnames(probs),
               "W"      %in% colnames(probs),
               "C"      %in% colnames(probs),
               !("haplotype"  %in% colnames(probs)),
               !("haplo_name" %in% colnames(probs)),
               !("nb_hap_ll"  %in% colnames(probs)))
+
+  if (!manual.segs){
+    assert_that("num_bins" %in% colnames(probs))
+  }
 
 
   if (!definedHapStatus){
@@ -223,8 +232,13 @@ mosaiClassifierCalcProbs <- function(probs, maximumCN=4, haplotypeMode=F, alpha=
 
   ###########
   # reshuffling the columns
+  if (manual.segs){
+  probs <- probs[,.(sample, cell, chrom, start, end, class, nb_p, expected,
+                    W, C, scalar, haplotype, Wcn, Ccn, haplo_name, geno_name)]
+  } else {
   probs <- probs[,.(sample, cell, chrom, start, end, class, nb_p, expected, num_bins,
                     W, C, scalar, haplotype, Wcn, Ccn, haplo_name, geno_name)]
+  }
 
   # computing dispersion parameters seperately for each segment and W and C counts ("Wcn" and "Ccn")
   message("[MosaiClassifier] Calculate dispersion parameters")
