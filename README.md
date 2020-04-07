@@ -67,7 +67,7 @@ This branch of the pipeline supports submitting arbitrary segments as bed input 
 
 1. **Submitting arbitrary segments as a bed file**
 
-This mode disables the segmentation part and gets the user-defined segmentation as an input bed file. For running the pipeline in this mode, set `manual_segments` to `true` in the `Snake.config.json` file, then a subdirectory `manaul_segmentation` and add you bed file named `sampleName.bed` there:
+This mode disables the segmentation part and gets the user-defined segmentation as an input bed file. For running the pipeline in this mode, set `manual_segments` to `true` in the `Snake.config.json` file, then create a subdirectory `manaul_segmentation` and add you bed file named `sampleName.bed` there:
    ```
    cd pipeline
    mkdir manaul_segmentation
