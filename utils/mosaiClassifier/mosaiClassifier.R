@@ -96,6 +96,7 @@ mosaiClassifierPrepare <- function(counts, info, strand, segs, normVector = NULL
                 by = c("sample","cell")) )
 
 	if (manual.segs) {
+		bin.size <- median(counts[,end-start])
 		probs <- merge(segs, info[,.(sample, cell, nb_p, mean)], by=c("sample", "cell"))
 		message("[MosaiClassifier] Annotating strand-state")
 		probs = addStrandStates(probs, strand)
@@ -140,7 +141,7 @@ mosaiClassifierPrepare <- function(counts, info, strand, segs, normVector = NULL
 		probs <- addCountsPerSegment(probs, counts, manual.segs)
 		probs[, `:=`(from = NULL,
                to   = NULL,)]
-  }
+        }
 
   # Add normalization factors to the expected counts ("scalar")
   if (!is.null(normVector)) {
