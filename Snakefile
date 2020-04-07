@@ -92,8 +92,17 @@ if config["simulation_mode"]:
                    bpdens = BPDENS,
                    sv_call_type = SV_CALL_TYPE),
 
-#elif config["manual_segments"]:
-#    rule all:
+elif config["manual_segments"]:
+    rule all:
+        input:
+            expand("plots/{sample}/{window}_fixed.pdf",      sample = SAMPLES, window = [50000, 100000, 200000, 500000]),
+            expand("plots/{sample}/{window}_fixed_norm.pdf", sample = SAMPLES, window = [50000, 100000, 200000]),
+            expand("ploidy/{sample}/ploidy.{chrom}.txt", sample = SAMPLES, chrom = config["chromosomes"]),
+            expand("halo/{sample}/{window}_{suffix}.json.gz",
+                   sample = SAMPLES,
+                   window = [100000],
+                   suffix = ["fixed", "fixed_norm"]),
+            expand("stats-merged/{sample}/stats.tsv", sample = SAMPLES),
 #        input:
 #            expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
 #                   sample = SAMPLES,
@@ -709,7 +718,8 @@ rule mosaiClassifier_make_call:
     output:
         "sv_calls/{sample}/{window}_fixed_norm.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/simpleCalls_llr{llr}_poppriors{pop_priors,(TRUE|FALSE)}_haplotags{use_haplotags,(TRUE|FALSE)}_gtcutoff{gtcutoff,[0-9\\.]+}_regfactor{regfactor,[0-9]+}.txt"
     params:
-        minFrac_used_bins = 0.8
+        minFrac_used_bins = 0.8,
+	manual_segs = config["manual_segments"]
     log:
         "log/mosaiClassifier_make_call/{sample}/{window}_fixed_norm.{bpdens}.llr{llr}.poppriors{pop_priors}.haplotags{use_haplotags}.gtcutoff{gtcutoff}.regfactor{regfactor}.log"
     script:

@@ -11,7 +11,7 @@ source("utils/mosaiClassifier/haploAndGenoName.R")
 #' @author Sascha Meiers
 #' @export
 #'
-makeSVCallSimple <- function(probs, llr_thr = 1, use.pop.priors = FALSE, use.haplotags = FALSE, genotype.cutoff = 0.0, bin.size, minFrac.used.bins = 0.5) {
+makeSVCallSimple <- function(probs, llr_thr = 1, use.pop.priors = FALSE, use.haplotags = FALSE, genotype.cutoff = 0.0, bin.size, minFrac.used.bins = 0.5, manual.segs=FALSE) {
 
   assert_that(is.data.table(probs),
               "sample" %in% colnames(probs),
@@ -27,7 +27,9 @@ makeSVCallSimple <- function(probs, llr_thr = 1, use.pop.priors = FALSE, use.hap
   assert_that("nb_hap_pp" %in% colnames(probs)) %>% invisible
 
   # kick out the segments with a large fraction of blacklisted bins
-  probs <- probs[num_bins*bin.size/(end-start) >= minFrac.used.bins]
+  if(!manual.segs){
+    probs <- probs[num_bins*bin.size/(end-start) >= minFrac.used.bins]
+  }
 
   setkey(probs, chrom, start, end, sample, cell)
 
@@ -81,7 +83,11 @@ makeSVCallSimple <- function(probs, llr_thr = 1, use.pop.priors = FALSE, use.hap
 
 
   # Clean up table
-  probs <- probs[, .(chrom, start, end, sample, cell, class, scalar, num_bins, sv_call_name, sv_call_haplotype, sv_call_name_2nd, sv_call_haplotype_2nd, llr_to_ref, llr_to_2nd)]
+  if(manual.segs){
+    probs <- probs[, .(chrom, start, end, sample, cell, class, scalar, sv_call_name, sv_call_haplotype, sv_call_name_2nd, sv_call_haplotype_2nd, llr_to_ref, llr_to_2nd)]
+  } else{
+    probs <- probs[, .(chrom, start, end, sample, cell, class, scalar, num_bins, sv_call_name, sv_call_haplotype, sv_call_name_2nd, sv_call_haplotype_2nd, llr_to_ref, llr_to_2nd)]
+  }
 
   return(probs[sv_call_name != "ref_hom" & llr_to_ref > llr_thr])
 }
