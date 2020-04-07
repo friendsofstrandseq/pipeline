@@ -32,12 +32,6 @@ counts = fread(paste("zcat",snakemake@input[["counts"]]))
 info   = fread(snakemake@input[["info"]])
 strand = fread(snakemake@input[["states"]])
 segs   = fread(snakemake@input[["bp"]])
-bin.size = snakemake@params[["window_size"]]
-
-
-if (is.null(bin.size)){
-	bin.size = as.numeric(snakemake@wildcards[["window_size"]])
-}
 
 
 # DEPERECATED: this version of normalization is no longer used
@@ -57,7 +51,9 @@ if ("CW" %in% strand$class) {
   haplotypeMode = F
 }
 
+print("mosaiClassifierPrepare...")
 d = mosaiClassifierPrepare(counts, info, strand, segs, manual.segs=snakemake@params[["manual_segs"]])
+print("mosaiClassifierCalcProbs...")
 e = mosaiClassifierCalcProbs(d, maximumCN = 4, haplotypeMode = haplotypeMode, manual.segs=snakemake@params[["manual_segs"]])
 
 saveRDS(e, file = snakemake@output[[1]])
