@@ -102,7 +102,6 @@ elif config["manual_segments"]:
                    sample = SAMPLES,
                    window = [100000],
                    suffix = ["fixed", "fixed_norm"]),
-            expand("stats-merged/{sample}/stats.tsv", sample = SAMPLES),
 #        input:
 #            expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
 #                   sample = SAMPLES,
