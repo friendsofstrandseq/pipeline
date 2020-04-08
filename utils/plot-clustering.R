@@ -1,7 +1,8 @@
 
-plot.clustering <- function(inputfile, bin.bed.filename, position.outputfile, chromosome.outputfile) {
+plot.clustering <- function(inputfile, bin.bed.filename, position.outputfile, chromosome.outputfile, bin.ref.filename, ref_bed) {
 
 	genome_bins <- read.table(bin.bed.filename, sep = '\t', header=F, comment.char = "")
+	ref_bins<-read.table(bin.ref.filename, sep = '\t', header=T, comment.char = "")
 	list_directory <- dir("./", full.names=TRUE)
 
 	pdf(position.outputfile, width = 11, height = 10 )
@@ -48,6 +49,19 @@ plot.clustering <- function(inputfile, bin.bed.filename, position.outputfile, ch
 	result[result==Inf] <- max(c(1, result[result!=Inf]))
 	rownames(result_sv) <- data1_cell_uniq_sort
 	colnames(result_sv) <- data1_pos_uniq_sort$posind
+
+	##Extract overlapping region using bedfile to adjust result and result_sv matrix
+	if (ref_bed == 1){
+		ref_bin_check <- matrix(0, nrow(data1_pos_uniq_sort), 1)
+		for (i in 1:nrow(data1_pos_uniq_sort)){
+			for (j in 1:nrow(ref_bins)){
+				if (data1_pos_uniq_sort[i,1]==ref_bins[j,1] & ((data1_pos_uniq_sort[i,3]-data1_pos_uniq_sort[i,2]) + (ref_bins[j,3]-ref_bins[j,2])) > (max(data1_pos_uniq_sort[i,3], ref_bins[j,3])-min(data1_pos_uniq_sort[i,2], ref_bins[j,2]))){ref_bin_check[i] <- 1}
+			}
+		}
+		result <- result[,ref_bin_check==1]
+		result_sv <- result_sv[,ref_bin_check==1]
+		data1_pos_uniq_sort <- data1_pos_uniq_sort[ref_bin_check==1,]
+	}
 
 	##Add chromosome color code to heatmap
 	data1_pos_uniq_sort$color <- "magenta" 
