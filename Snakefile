@@ -107,7 +107,7 @@ elif config["manual_segments"]:
 #                   sample = SAMPLES,
 #                   window = [100000],
 #                   bpdens = BPDENS),
-#            #expand("counts/{sample}/manual_segments_counts.txt", sample = SAMPLES),
+	 expand("counts/{sample}/manual_segments_counts.txt", sample = SAMPLES),
 
 
 else:
@@ -549,16 +549,15 @@ if config["manual_segments"]:
 		    "log/{sample}/merge_count_files.log"
 		#shell:"cat {input} | gzip -c > {output}"
 		script:"utils/merge_count_files.snakemake.R"
-
-#	rule pysam_count_reads:
-#		input:
-#		    bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in #BAM_PER_SAMPLE else "FOOBAR",
-#		    bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in #BAM_PER_SAMPLE else "FOOBAR",
-#		    bed = "manaul_segmentation/{sample}.bed",
-#		output: "counts/{sample}/manual_segments_counts.txt.gz",
-#		log:
-#		    "log/{sample}/merge_count_files.log"
-#		script:"utils/pysam_count_files.py"
+			
+	rule pysam_count_reads:
+        input:
+                bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+                bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",                bed = "manaul_segmentation/{sample}.bed",
+        output: "counts/{sample}/manual_segments_counts.txt",
+        log:
+                "log/{sample}/merge_count_files.log"
+        shell:"python3 utils/pysam_count_files.py -i {input.bam} -b {input.bed} -c {output}"
 
 
 rule extract_single_cell_counts:
