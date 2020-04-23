@@ -521,35 +521,7 @@ if not config["simulation_mode"]:
             > {log} 2>&1
             """
 
-if config["manual_segments"]:
-	rule count_reads:
-		input:
-		    bam = "bam/{sample}/selected/{bam}.bam",
-		    bai = "bam/{sample}/selected/{bam}.bam.bai",
-		    bed = "manaul_segmentation/{sample}.bed",
-		output:
-		    w_counts = temp("counts/{sample}/manual_segments_{bam}_w_counts.txt"),
-		    c_counts = temp("counts/{sample}/manual_segments_{bam}_c_counts.txt"),
-		log:
-		    "log/{sample}/count_reads_{bam}.log"
-		shell:
-		    """
-		    (time
-		    bedtools intersect -nonamecheck -a {input.bed} -b <(samtools view -Sb -f 16 {input.bam}) -c > {output.w_counts} && \
-		    bedtools intersect -nonamecheck -a {input.bed} -b <(samtools view -Sb -F 16 {input.bam}) -c > {output.c_counts} ) \
-		    > {log} 2>&1
-		    """
-
-	rule merge_count_files:
-		input:
-		    w_counts = lambda wc: temp(expand("counts/" + wc.sample + "/manual_segments_{bam}_w_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR"),
-		    c_counts = lambda wc: temp(expand("counts/" + wc.sample + "/manual_segments_{bam}_c_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR"),
-		output: "counts/{sample}/manual_segments_counts.txt",
-		log:
-		    "log/{sample}/merge_count_files.log"
-		#shell:"cat {input} | gzip -c > {output}"
-		script:"utils/merge_count_files.snakemake.R"
-			
+if config["manual_segments"]:			
 	rule watson_crick_counts:
         	input:
                 	bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
@@ -1198,3 +1170,4 @@ rule aggregate_summary_statistics:
     shell:
         "(head -n1 {input.tsv[0]} && tail -n1 -q {input.tsv}) > {output}"
     
+
