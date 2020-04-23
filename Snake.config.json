@@ -25,6 +25,7 @@
 
     "manual_segments" : true,
     "skip_segmentation" : true,
+    "use_priors" : false,
 
     "paired_end"    : true,
 

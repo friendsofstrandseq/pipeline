@@ -15,7 +15,12 @@ minFrac.used.bins    = as.numeric(snakemake@params[["minFrac_used_bins"]])
 bin.size     	     = as.numeric(snakemake@wildcards[["window"]])
 
 
+if (snakemake@params[["use_priors"]]) {
 probs <- mosaiClassifierPostProcessing(probs, regularizationFactor = regularizationFactor)
+} else{
+probs <- mosaiClassifierPostProcessing(probs, priors=NULL, regularizationFactor = regularizationFactor)
+}
+
 tab <- makeSVCallSimple(probs, llr_thr = llr, use.pop.priors = use.pop.priors, use.haplotags = use.haplotags, genotype.cutoff = genotype.cutoff, bin.size, minFrac.used.bins = minFrac.used.bins, manual.segs=snakemake@params[["manual_segs"]])
 
 write.table(tab, file = snakemake@output[[1]], sep = "\t", quote=F, row.names = F, col.names = T)

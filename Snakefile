@@ -101,13 +101,6 @@ elif config["manual_segments"]:
                    window = [100000],
                    bpdens = BPDENS,
                    method = METHODS),
-             
-#        input:
-#            expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
-#                   sample = SAMPLES,
-#                   window = [100000],
-#                   bpdens = BPDENS),
-            expand("counts/{sample}/manual_segments_counts.txt", sample = SAMPLES),
 
 
 else:
@@ -689,7 +682,8 @@ rule mosaiClassifier_make_call:
         "sv_calls/{sample}/{window}_fixed_norm.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/simpleCalls_llr{llr}_poppriors{pop_priors,(TRUE|FALSE)}_haplotags{use_haplotags,(TRUE|FALSE)}_gtcutoff{gtcutoff,[0-9\\.]+}_regfactor{regfactor,[0-9]+}.txt"
     params:
         minFrac_used_bins = 0.8,
-	manual_segs = config["manual_segments"]
+	manual_segs = config["manual_segments"],
+	use_priors = config["use_priors"]
     log:
         "log/mosaiClassifier_make_call/{sample}/{window}_fixed_norm.{bpdens}.llr{llr}.poppriors{pop_priors}.haplotags{use_haplotags}.gtcutoff{gtcutoff}.regfactor{regfactor}.log"
     script:
@@ -1170,4 +1164,5 @@ rule aggregate_summary_statistics:
     shell:
         "(head -n1 {input.tsv[0]} && tail -n1 -q {input.tsv}) > {output}"
     
+
 
