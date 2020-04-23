@@ -95,13 +95,13 @@ if config["simulation_mode"]:
 elif config["manual_segments"]:
     rule all:
         input:
-            expand("plots/{sample}/{window}_fixed.pdf",      sample = SAMPLES, window = [50000, 100000, 200000, 500000]),
-            expand("plots/{sample}/{window}_fixed_norm.pdf", sample = SAMPLES, window = [50000, 100000, 200000]),
-            expand("ploidy/{sample}/ploidy.{chrom}.txt", sample = SAMPLES, chrom = config["chromosomes"]),
-            expand("halo/{sample}/{window}_{suffix}.json.gz",
+             expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/{method}.txt",
                    sample = SAMPLES,
+                   chrom = config["chromosomes"],
                    window = [100000],
-                   suffix = ["fixed", "fixed_norm"]),
+                   bpdens = BPDENS,
+                   method = METHODS),
+             
 #        input:
 #            expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
 #                   sample = SAMPLES,
