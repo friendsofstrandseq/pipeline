@@ -5,6 +5,8 @@ from pathlib import Path
 import glob
 def counts(input_bam, input_bed ,counts_output):
     counts_file = open (counts_output, 'w')
+    watson_count=0
+    crick_count=0
     counts_file.write('chrom'+ "\t"+ 'start'+ "\t" + 'end'+ "\t" + 'sample' + "\t" + 'cell' + "\t" + 'C'+ "\t" + 'W' +"\n")
     path = Path(input_bam)
     glob_path = path.glob('*.bam')
@@ -13,9 +15,8 @@ def counts(input_bam, input_bed ,counts_output):
         cell=file_name.strip().split(".bam")[0]
         sample= cell.strip().split(".")[0]
         bam_file = pysam.AlignmentFile(file, "rb")
-        watson_count =0
-        crick_count= 0
         with open(input_bed, 'r') as bed_file:
+            next(bed_file) #skipping the header in bed file
             for line in bed_file:
                 line_r = line.strip().split("\t")
                 chromosome= line_r[0]
@@ -30,6 +31,9 @@ def counts(input_bam, input_bed ,counts_output):
                         pass
 
                 counts_file.write(str(chromosome)+ "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) + "\t" + str(crick_count)+ "\t" + str(watson_count)+"\n")
+                watson_count =0
+                crick_count= 0
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
