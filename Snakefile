@@ -521,7 +521,7 @@ if config["manual_segments"]:
                 	bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",                bed = "manaul_segmentation/{sample}.bed",
         	output: "counts/{sample}/manual_segments_counts.txt",
         	log:
-                	"log/{sample}/merge_count_files.log"
+                	"log/{sample}/watson_crick_counts.log"
         	shell:"python3 utils/watson_crick_counts.py -i {input.bam} -b {input.bed} -c {output}"
 
 
@@ -1164,5 +1164,6 @@ rule aggregate_summary_statistics:
     shell:
         "(head -n1 {input.tsv[0]} && tail -n1 -q {input.tsv}) > {output}"
     
+
 
 

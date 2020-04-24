@@ -16,6 +16,8 @@ def counts(input_bam, input_bed ,counts_output):
         watson_count =0
         crick_count= 0
         with open(input_bed, 'r') as bed_file:
+            # skip the header line
+            next(bed_file)
             for line in bed_file:
                 line_r = line.strip().split("\t")
                 chromosome= line_r[0]
