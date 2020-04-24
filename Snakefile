@@ -79,26 +79,26 @@ localrules:
 if config["simulation_mode"]:
     rule all:
         input:
-            expand("sv_calls/simulation{seed}/{window_size}_fixed.{bpdens}/plots/sv_calls/{sv_call_type}.{chrom}.pdf",
+            expand("sv_calls/simulation{seed}/{bin_size}_fixed.{bpdens}/plots/sv_calls/{sv_call_type}.{chrom}.pdf",
                    seed = config["seed"],
                    chrom = config["chromosomes"],
-                   window_size = config["simulation_window_sizes"],
+                   bin_size = config["simulation_window_sizes"],
                    bpdens = BPDENS,
                    sv_call_type = SV_CALL_TYPE),
-            expand("sv_probabilities/simulation{seed}/{window_size}_fixed.{bpdens}/biallelic-likelihood-table.data",
+            expand("sv_probabilities/simulation{seed}/{bin_size}_fixed.{bpdens}/biallelic-likelihood-table.data",
                    seed = config["seed"],
                    chrom = config["chromosomes"],
-                   window_size = config["simulation_window_sizes"],
+                   bin_size = config["simulation_window_sizes"],
                    bpdens = BPDENS,
                    sv_call_type = SV_CALL_TYPE),
 
 elif config["manual_segments"]:
     rule all:
         input:
-             expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/{method}.txt",
+             expand("sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens}/{method}.txt",
                    sample = SAMPLES,
                    chrom = config["chromosomes"],
-                   window = [100000],
+                   bin_size = [100000],
                    bpdens = BPDENS,
                    method = METHODS),
 
@@ -106,24 +106,24 @@ elif config["manual_segments"]:
 else:
     rule all:
         input:
-            expand("plots/{sample}/{window}_fixed.pdf",      sample = SAMPLES, window = [50000, 100000, 200000, 500000]),
-            expand("plots/{sample}/{window}_fixed_norm.pdf", sample = SAMPLES, window = [50000, 100000, 200000]),
-            expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf",
+            expand("plots/{sample}/{bin_size}_fixed.pdf",      sample = SAMPLES, bin_size = [50000, 100000, 200000, 500000]),
+            expand("plots/{sample}/{bin_size}_fixed_norm.pdf", sample = SAMPLES, bin_size = [50000, 100000, 200000]),
+            expand("sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf",
                    sample = SAMPLES,
                    chrom = config["chromosomes"],
-                   window = [100000],
+                   bin_size = [100000],
                    bpdens = BPDENS,
                    method = METHODS),
             expand("ploidy/{sample}/ploidy.{chrom}.txt", sample = SAMPLES, chrom = config["chromosomes"]),
-            expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_consistency/{method}.consistency-barplot-{plottype}.pdf",
+            expand("sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens}/plots/sv_consistency/{method}.consistency-barplot-{plottype}.pdf",
                    sample = SAMPLES,
-                   window = [100000],
+                   bin_size = [100000],
                    bpdens = BPDENS,
                    method = METHODS,
                    plottype = ["byaf","bypos"]),
-            expand("halo/{sample}/{window}_{suffix}.json.gz",
+            expand("halo/{sample}/{bin_size}_{suffix}.json.gz",
                    sample = SAMPLES,
-                   window = [100000],
+                   bin_size = [100000],
                    suffix = ["fixed", "fixed_norm"]),
             expand("stats-merged/{sample}/stats.tsv", sample = SAMPLES),
 
@@ -133,15 +133,15 @@ else:
 
 rule simul:
     input:
-        expand("sv_calls/simulation{seed}-{window}/{window}_fixed.{segments}/{method}.{chrom}.pdf",
+        expand("sv_calls/simulation{seed}-{bin_size}/{bin_size}_fixed.{segments}/{method}.{chrom}.pdf",
                 seed   = list(range(7)),
-                window = [50000],
+                bin_size = [50000],
                 segments = ["few","medium"],
                 method = METHODS,
                 chrom = config["chromosomes"]),
-        expand("plots/simulation{seed}-{window}/{window}_fixed.pdf",
+        expand("plots/simulation{seed}-{bin_size}/{bin_size}_fixed.pdf",
                 seed   = list(range(7)),
-                window = [50000])
+                bin_size = [50000])
 
 rule simulate_genome:
     output:
@@ -179,48 +179,48 @@ rule create_sv_file_from_tree:
         tree = "simulation/phylogeny/lineage_tree{seed}.newick",
         genome = "simulation/phylogeny/genome/genome{seed}.tsv"
     output:
-        variants = "simulation/phylogeny/variants/genome{seed}-{window_size}.txt"
+        variants = "simulation/phylogeny/variants/genome{seed}-{bin_size}.txt"
     log:
-        "log/simulate_lineage_tree/create_sv_file_from_tree_seed{seed}-{window_size}.log"
+        "log/simulate_lineage_tree/create_sv_file_from_tree_seed{seed}-{bin_size}.log"
     script:
         "utils/create_sv_file.snakemake.R"
 
 rule simulate_tree_based_counts:
     input:
-        variants="simulation/phylogeny/variants/genome{seed}-{window_size}.txt",
-        sce="simulation/sce/genome{seed}-{window_size}.txt",
-        info="simulation/info/genome{seed}-{window_size}.txt"
+        variants="simulation/phylogeny/variants/genome{seed}-{bin_size}.txt",
+        sce="simulation/sce/genome{seed}-{bin_size}.txt",
+        info="simulation/info/genome{seed}-{bin_size}.txt"
     output:
-        counts="counts/simulation{seed}/{window_size}_fixed.txt.gz"
+        counts="counts/simulation{seed}/{bin_size}_fixed.txt.gz"
     params:
         alpha=config["simulation_alpha"]
     log:
-        "log/simulate_tree_based_counts_seed{seed}-{window_size}.log"
+        "log/simulate_tree_based_counts_seed{seed}-{bin_size}.log"
     script:
         "utils/simulate_counts.snakemake.R"
 
 rule simul_compute_breakpoints_likelihood:
     input:
-        variants="simulation/phylogeny/variants/genome{seed}-{window_size}.txt",
-        sce="simulation/sce/genome{seed}-{window_size}.txt",
-        info="simulation/info/genome{seed}-{window_size}.txt",
-        counts="counts/simulation{seed}/{window_size}_fixed.txt.gz"
+        variants="simulation/phylogeny/variants/genome{seed}-{bin_size}.txt",
+        sce="simulation/sce/genome{seed}-{bin_size}.txt",
+        info="simulation/info/genome{seed}-{bin_size}.txt",
+        counts="counts/simulation{seed}/{bin_size}_fixed.txt.gz"
     output:
-        breakpoint_ll="breakpoint_likelihoods/simulation{seed}/breakpoint-ll-{window_size}-{chrom}.txt.gz"
+        breakpoint_ll="breakpoint_likelihoods/simulation{seed}/breakpoint-ll-{bin_size}-{chrom}.txt.gz"
     params:
         alpha=config["simulation_alpha"]
     log:
-        "log/simul_compute_breakpoints_likelihood_seed{seed}-{window_size}-{chrom}.log"
+        "log/simul_compute_breakpoints_likelihood_seed{seed}-{bin_size}-{chrom}.log"
     script:
         "utils/computeBreakpointLikelihoods.snakemake.R"
 
 rule simul_plot_breakpoints_likelihood:
     input:
-        breakpoint_ll=expand("breakpoint_likelihoods/simulation{{seed}}/breakpoint-ll-{{window_size}}-{chrom}.txt.gz", chrom = config["chromosomes"])
+        breakpoint_ll=expand("breakpoint_likelihoods/simulation{{seed}}/breakpoint-ll-{{bin_size}}-{chrom}.txt.gz", chrom = config["chromosomes"])
     output:
-        plot_breakpoint_ll="breakpoint_likelihoods/simulation{seed}/plot-breakpoint-ll-{window_size}.pdf"
+        plot_breakpoint_ll="breakpoint_likelihoods/simulation{seed}/plot-breakpoint-ll-{bin_size}.pdf"
     log:
-        "log/simul_plot_breakpoints_likelihood_seed{seed}-{window_size}.log"
+        "log/simul_plot_breakpoints_likelihood_seed{seed}-{bin_size}.log"
     script:
         "utils/plotBreakpointLikelihoods.snakemake.R"
 
@@ -240,25 +240,25 @@ rule add_vafs_to_simulated_genome:
         """
 
 def min_coverage(wildcards):
-    return round(float(config["simulation_min_reads_per_library"]) * int(wildcards.window_size) / float(config["genome_size"]))
+    return round(float(config["simulation_min_reads_per_library"]) * int(wildcards.bin_size) / float(config["genome_size"]))
 
 def max_coverage(wildcards):
-    return round(float(config["simulation_max_reads_per_library"]) * int(wildcards.window_size) / float(config["genome_size"]))
+    return round(float(config["simulation_max_reads_per_library"]) * int(wildcards.bin_size) / float(config["genome_size"]))
 
 def neg_binom_p(wildcards):
-    return float(config["simulation_neg_binom_p"][wildcards.window_size])
+    return float(config["simulation_neg_binom_p"][wildcards.bin_size])
 
 ## correct the sce file (remove overlapping sce regions) at the end of simulate_counts; it should be properly fixed later
 rule simulate_counts:
     input:
         config="simulation/genome-with-vafs/genome{seed}.tsv",
     output:
-        counts="simulation/counts/genome{seed}-{window_size}.txt.gz",
-        segments="simulation/segments/genome{seed}-{window_size}.txt",
-        phases="simulation/phases/genome{seed}-{window_size}.txt",
-        info="simulation/info/genome{seed}-{window_size}.txt",
-        sce="simulation/sce/genome{seed}-{window_size}.txt",
-        variants="simulation/variants/genome{seed}-{window_size}.txt",
+        counts="simulation/counts/genome{seed}-{bin_size}.txt.gz",
+        segments="simulation/segments/genome{seed}-{bin_size}.txt",
+        phases="simulation/phases/genome{seed}-{bin_size}.txt",
+        info="simulation/info/genome{seed}-{bin_size}.txt",
+        sce="simulation/sce/genome{seed}-{bin_size}.txt",
+        variants="simulation/variants/genome{seed}-{bin_size}.txt",
     params:
         mc_command   = config["mosaicatcher"],
         neg_binom_p  = neg_binom_p,
@@ -267,11 +267,11 @@ rule simulate_counts:
         cell_count   = config["simulation_cell_count"],
         alpha        = config["simulation_alpha"],
     log:
-        "log/simulate_counts/genome{seed}-{window_size}.log"
+        "log/simulate_counts/genome{seed}-{bin_size}.log"
     shell:
         """
             {params.mc_command} simulate \
-            -w {wildcards.window_size} \
+            -w {wildcards.bin_size} \
             --seed {wildcards.seed} \
             -n {params.cell_count} \
             -p {params.neg_binom_p} \
@@ -284,19 +284,19 @@ rule simulate_counts:
             -U {output.segments} \
             -P {output.phases} \
             -S {output.sce} \
-            --sample-name simulation{wildcards.seed}-{wildcards.window_size} \
+            --sample-name simulation{wildcards.seed}-{wildcards.bin_size} \
             {input.config} \
             && Rscript utils/remove_overlapping_sces.R {output.sce} > {log} 2>&1
         """
 
 rule link_to_simulated_counts:
     input:
-        #counts="simulation/counts/genome{seed}-{window_size}.txt.gz",
-        info="simulation/info/genome{seed}-{window_size}.txt",
+        #counts="simulation/counts/genome{seed}-{bin_size}.txt.gz",
+        info="simulation/info/genome{seed}-{bin_size}.txt",
     output:
-        #counts = "counts/simulation{seed}-{window_size}/{window_size}_fixed.txt.gz",
-        #          counts/simulation{seed}/{window_size}_fixed.txt.gz
-        info   = "counts/simulation{seed}/{window_size}_fixed.info"
+        #counts = "counts/simulation{seed}-{bin_size}/{bin_size}_fixed.txt.gz",
+        #          counts/simulation{seed}/{bin_size}_fixed.txt.gz
+        info   = "counts/simulation{seed}/{bin_size}_fixed.info"
     run:
         d = os.path.dirname(output.info)
         info_file = os.path.basename(output.info)
@@ -305,9 +305,9 @@ rule link_to_simulated_counts:
 
 #rule link_to_simulated_strand_states:
 #    input:
-#        sce="simulation/sce/genome{seed}-{window_size}.txt",
+#        sce="simulation/sce/genome{seed}-{bin_size}.txt",
 #    output:
-#        states="strand_states/simulation{seed}-{window_size}/final.txt",
+#        states="strand_states/simulation{seed}-{bin_size}/final.txt",
 #    run:
 #        d = os.path.dirname(output.states)
 #        f = os.path.basename(output.states)
@@ -359,16 +359,16 @@ ruleorder: plot_SV_calls_simulated > plot_SV_calls
 
 rule plot_SV_calls:
     input:
-        counts = "counts/{sample}/{windows}.txt.gz",
-        calls  = "sv_calls/{sample}/{windows}.{bpdens}/{method}.txt",
-        complex = "sv_calls/{sample}/{windows}.{bpdens}/{method}.complex.tsv",
-        strand = "strand_states/{sample}/{windows}.{bpdens}/final.txt",
-        segments = "segmentation2/{sample}/{windows}.{bpdens}.txt",
-        scsegments = "segmentation-singlecell/{sample}/{windows}.{bpdens}.txt",
+        counts = "counts/{sample}/{window_specs}.txt.gz",
+        calls  = "sv_calls/{sample}/{window_specs}.{bpdens}/{method}.txt",
+        complex = "sv_calls/{sample}/{window_specs}.{bpdens}/{method}.complex.tsv",
+        strand = "strand_states/{sample}/{window_specs}.{bpdens}/final.txt",
+        segments = "segmentation2/{sample}/{window_specs}.{bpdens}.txt",
+        scsegments = "segmentation-singlecell/{sample}/{window_specs}.{bpdens}.txt",
     output:
-        "sv_calls/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_calls/{method}.{chrom}.pdf"
+        "sv_calls/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_calls/{method}.{chrom}.pdf"
     log:
-        "log/plot_SV_calls/{sample}/{windows}.{bpdens}.{method}.{chrom}.log"
+        "log/plot_SV_calls/{sample}/{window_specs}.{bpdens}.{method}.{chrom}.log"
     shell:
         """
         Rscript utils/plot-sv-calls.R \
@@ -384,15 +384,15 @@ rule plot_SV_calls:
 
 rule plot_SV_calls_simulated:
     input:
-        counts = "counts/simulation{seed}/{window_size}_fixed.txt.gz",
-        calls  = "sv_calls/simulation{seed}/{window_size}_fixed.{bpdens}/{method}.txt",
-        strand = "strand_states/simulation{seed}/{window_size}_fixed.{bpdens}/intitial_strand_state",
-        segments = "segmentation2/simulation{seed}/{window_size}_fixed.{bpdens}.txt",
-        truth  = "simulation/phylogeny/variants/genome{seed}-{window_size}.txt"
+        counts = "counts/simulation{seed}/{bin_size}_fixed.txt.gz",
+        calls  = "sv_calls/simulation{seed}/{bin_size}_fixed.{bpdens}/{method}.txt",
+        strand = "strand_states/simulation{seed}/{bin_size}_fixed.{bpdens}/intitial_strand_state",
+        segments = "segmentation2/simulation{seed}/{bin_size}_fixed.{bpdens}.txt",
+        truth  = "simulation/phylogeny/variants/genome{seed}-{bin_size}.txt"
     output:
-        "sv_calls/simulation{seed}/{window_size}_fixed.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_calls/{method}.{chrom}.pdf"
+        "sv_calls/simulation{seed}/{bin_size}_fixed.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_calls/{method}.{chrom}.pdf"
     log:
-        "log/plot_SV_calls_simulated/simulation{seed}-{window_size}/{window_size}_fixed.{bpdens}.{method}.{chrom}.log"
+        "log/plot_SV_calls_simulated/simulation{seed}-{bin_size}/{bin_size}_fixed.{bpdens}.{method}.{chrom}.log"
     shell:
         """
         Rscript utils/plot-sv-calls.R \
@@ -408,23 +408,23 @@ rule plot_SV_calls_simulated:
 
 rule plot_SV_consistency_barplot:
     input:
-        sv_calls  = "sv_calls/{sample}/{windows}.{bpdens}/{method}.txt",
+        sv_calls  = "sv_calls/{sample}/{window_specs}.{bpdens}/{method}.txt",
     output:
-        barplot_bypos = "sv_calls/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_consistency/{method}.consistency-barplot-bypos.pdf",
-        barplot_byaf = "sv_calls/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_consistency/{method}.consistency-barplot-byaf.pdf",
+        barplot_bypos = "sv_calls/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_consistency/{method}.consistency-barplot-bypos.pdf",
+        barplot_byaf = "sv_calls/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/plots/sv_consistency/{method}.consistency-barplot-byaf.pdf",
     log:
-        "log/plot_SV_consistency/{sample}/{windows}.{bpdens}.{method}.log"
+        "log/plot_SV_consistency/{sample}/{window_specs}.{bpdens}.{method}.log"
     script:
         "utils/sv_consistency_barplot.snakemake.R"
 
 
 rule generate_halo_json:
     input:
-        counts = "counts/{sample}/{windows}.txt.gz",
+        counts = "counts/{sample}/{window_specs}.txt.gz",
     output:
-        json = "halo/{sample}/{windows}.json.gz",
+        json = "halo/{sample}/{window_specs}.json.gz",
     log:
-        "log/generate_halo_json/{sample}/{windows}.{windows}.log"
+        "log/generate_halo_json/{sample}/{window_specs}.{window_specs}.log"
     shell:
         "(./utils/counts_to_json.py {input.counts} | gzip > {output.json}) 2> {log}"
 
@@ -470,10 +470,10 @@ if not config["simulation_mode"]:
             bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
             excl = "log/exclude_file"
         output:
-            counts = "counts/{sample}/{window}_fixed.txt.gz",
-            info   = "counts/{sample}/{window}_fixed.info"
+            counts = "counts/{sample}/{bin_size}_fixed.txt.gz",
+            info   = "counts/{sample}/{bin_size}_fixed.info"
         log:
-            "log/{sample}/mosaic_count_fixed.{window}.log"
+            "log/{sample}/mosaic_count_fixed.{bin_size}.log"
         params:
             mc_command = config["mosaicatcher"]
         shell:
@@ -484,7 +484,7 @@ if not config["simulation_mode"]:
                 -o {output.counts} \
                 -i {output.info} \
                 -x {input.excl} \
-                -w {wildcards.window} \
+                -w {wildcards.bin_size} \
                 {input.bam} \
             > {log} 2>&1
             """
@@ -493,13 +493,13 @@ if not config["simulation_mode"]:
         input:
             bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]),
             bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]),
-            bed = lambda wc: config["variable_bins"][str(wc.window)],
+            bed = lambda wc: config["variable_bins"][str(wc.bin_size)],
             excl = "log/exclude_file"
         output:
-            counts = "counts/{sample}/{window}_variable.txt.gz",
-            info   = "counts/{sample}/{window}_variable.info"
+            counts = "counts/{sample}/{bin_size}_variable.txt.gz",
+            info   = "counts/{sample}/{bin_size}_variable.info"
         log:
-            "log/{sample}/mosaic_count_variable.{window}.log"
+            "log/{sample}/mosaic_count_variable.{bin_size}.log"
         params:
             mc_command = config["mosaicatcher"]
         shell:
@@ -527,9 +527,9 @@ if config["manual_segments"]:
 
 rule extract_single_cell_counts:
     input:
-        "counts/{sample}/{window}_{file_name}.txt.gz"
+        "counts/{sample}/{bin_size}_{file_name}.txt.gz"
     output:
-        "counts-per-cell/{sample}/{cell}/{window,[0-9]+}_{file_name}.txt.gz"
+        "counts-per-cell/{sample}/{cell}/{bin_size,[0-9]+}_{file_name}.txt.gz"
     shell:
         "zcat {input} | awk '(NR==1) || $5 ==\"{wildcards.cell}\"' | gzip > {output}"
 
@@ -540,11 +540,11 @@ rule extract_single_cell_counts:
 
 rule merge_blacklist_bins:
     input:
-        norm = "utils/normalization/HGSVC.{window}.txt"
+        norm = "utils/normalization/HGSVC.{bin_size}.txt"
     output:
-        merged = "normalizations/HGSVC.{window}.merged.tsv"
+        merged = "normalizations/HGSVC.{bin_size}.merged.tsv"
     log:
-        "log/merge_blacklist_bins/{window}.log"
+        "log/merge_blacklist_bins/{bin_size}.log"
     shell:
         """
         utils/merge-blacklist.py --merge_distance 500000 {input.norm} > {output.merged} 2> {log}
@@ -552,12 +552,12 @@ rule merge_blacklist_bins:
 
 rule normalize_counts:
     input:
-        counts = "counts/{sample}/{window}_fixed.txt.gz",
-        norm   = "normalizations/HGSVC.{window}.merged.tsv",
+        counts = "counts/{sample}/{bin_size}_fixed.txt.gz",
+        norm   = "normalizations/HGSVC.{bin_size}.merged.tsv",
     output:
-        "counts/{sample}/{window}_fixed_norm.txt.gz"
+        "counts/{sample}/{bin_size}_fixed_norm.txt.gz"
     log:
-        "log/normalize_counts/{sample}/{window}_fixed.log"
+        "log/normalize_counts/{sample}/{bin_size}_fixed.log"
     shell:
         """
         Rscript utils/normalize.R {input.counts} {input.norm} {output} 2>&1 > {log}
@@ -565,9 +565,9 @@ rule normalize_counts:
 
 rule link_normalized_info_file:
     input:
-        info = "counts/{sample}/{window}_fixed.info"
+        info = "counts/{sample}/{bin_size}_fixed.info"
     output:
-        info = "counts/{sample}/{window}_fixed_norm.info"
+        info = "counts/{sample}/{bin_size}_fixed_norm.info"
     run:
         d = os.path.dirname(output.info)
         file = os.path.basename(output.info)
@@ -580,14 +580,14 @@ rule link_normalized_info_file:
 
 rule segmentation:
     input:
-        "counts/{sample}/{window}_{file_name}.txt.gz"
+        "counts/{sample}/{bin_size}_{file_name}.txt.gz"
     output:
-        "segmentation/{sample}/{window,\d+}_{file_name}.txt"
+        "segmentation/{sample}/{bin_size,\d+}_{file_name}.txt"
     log:
-        "log/segmentation/{sample}/{window}_{file_name}.log"
+        "log/segmentation/{sample}/{bin_size}_{file_name}.log"
     params:
         mc_command = config["mosaicatcher"],
-        min_num_segs = lambda wc: math.ceil(200000 / float(wc.window)) # bins to represent 200 kb
+        min_num_segs = lambda wc: math.ceil(200000 / float(wc.bin_size)) # bins to represent 200 kb
     shell:
         """
         {params.mc_command} segment \
@@ -601,11 +601,11 @@ rule segmentation:
 # Pick a few segmentations and prepare the input files for SV classification
 rule prepare_segments:
     input:
-        "segmentation/{sample}/{windows}.txt"
+        "segmentation/{sample}/{window_specs}.txt"
     output:
-        "segmentation2/{sample}/{windows}.{bpdens,(many|medium|few)}.txt"
+        "segmentation2/{sample}/{window_specs}.{bpdens,(many|medium|few)}.txt"
     log:
-        "log/prepare_segments/{sample}/{windows}.{bpdens}.log"
+        "log/prepare_segments/{sample}/{window_specs}.{bpdens}.log"
     params:
         quantile = lambda wc: config["bp_density"][wc.bpdens]
     script:
@@ -613,14 +613,14 @@ rule prepare_segments:
 
 rule segment_one_cell:
     input:
-        "counts-per-cell/{sample}/{cell}/{window}_{file_name}.txt.gz"
+        "counts-per-cell/{sample}/{cell}/{bin_size}_{file_name}.txt.gz"
     output:
-        "segmentation-per-cell/{sample}/{cell}/{window,\d+}_{file_name}.txt"
+        "segmentation-per-cell/{sample}/{cell}/{bin_size,\d+}_{file_name}.txt"
     log:
-        "log/segmentation-per-cell/{sample}/{cell}/{window}_{file_name}.log"
+        "log/segmentation-per-cell/{sample}/{cell}/{bin_size}_{file_name}.log"
     params:
         mc_command = config["mosaicatcher"],
-        min_num_segs = lambda wc: math.ceil(200000 / float(wc.window)) # bins to represent 200 kb
+        min_num_segs = lambda wc: math.ceil(200000 / float(wc.bin_size)) # bins to represent 200 kb
     shell:
         """
         {params.mc_command} segment \
@@ -633,16 +633,16 @@ rule segment_one_cell:
 
 rule segmentation_selection:
     input:
-        counts="counts/{sample}/{window}_{file_name}.txt.gz",
-        jointseg="segmentation/{sample}/{window}_{file_name}.txt",
-        singleseg=lambda wc: ["segmentation-per-cell/{}/{}/{}_{}.txt".format(wc.sample, cell, wc.window, wc.file_name) for cell in CELL_PER_SAMPLE[wc.sample]],
-        info="counts/{sample}/{window}_{file_name}.info",
+        counts="counts/{sample}/{bin_size}_{file_name}.txt.gz",
+        jointseg="segmentation/{sample}/{bin_size}_{file_name}.txt",
+        singleseg=lambda wc: ["segmentation-per-cell/{}/{}/{}_{}.txt".format(wc.sample, cell, wc.bin_size, wc.file_name) for cell in CELL_PER_SAMPLE[wc.sample]],
+        info="counts/{sample}/{bin_size}_{file_name}.info",
     output:
-        jointseg="segmentation2/{sample}/{window,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.txt",
-        singleseg="segmentation-singlecell/{sample}/{window,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.txt",
-        strand_states="strand_states/{sample}/{window,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}/intitial_strand_state",
+        jointseg="segmentation2/{sample}/{bin_size,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.txt",
+        singleseg="segmentation-singlecell/{sample}/{bin_size,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.txt",
+        strand_states="strand_states/{sample}/{bin_size,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}/intitial_strand_state",
     log:
-        "log/segmentation_selection/{sample}/{window}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.log"
+        "log/segmentation_selection/{sample}/{bin_size}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.log"
     params:
         cellnames = lambda wc: ",".join(cell for cell in CELL_PER_SAMPLE[wc.sample]),
         sce_min_distance = 500000,
@@ -657,16 +657,16 @@ rule segmentation_selection:
 rule plot_heatmap:
     input:
         maryam = "utils/R-packages2/MaRyam/R/MaRyam",
-        haplotypeProbs = "sv_probabilities/{sample}/{windows}.{bpdens}/allSegCellProbs.table",
-        genotypeProbs  = "sv_probabilities/{sample}/{windows}.{bpdens}/allSegCellGTprobs.table",
-        info     = "counts/{sample}/{windows}.info",
-        bamNames = "sv_probabilities/{sample}/{windows}.{bpdens}/bamNames.txt"
+        haplotypeProbs = "sv_probabilities/{sample}/{window_specs}.{bpdens}/allSegCellProbs.table",
+        genotypeProbs  = "sv_probabilities/{sample}/{window_specs}.{bpdens}/allSegCellGTprobs.table",
+        info     = "counts/{sample}/{window_specs}.info",
+        bamNames = "sv_probabilities/{sample}/{window_specs}.{bpdens}/bamNames.txt"
     output:
-        "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/final_plots/heatmapPlots.pdf"
+        "sv_probabilities/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/final_plots/heatmapPlots.pdf"
     params:
         r_package_path = "utils/R-packages2"
     log:
-        "log/plot_heatmap/{sample}/{windows}.{bpdens}.log"
+        "log/plot_heatmap/{sample}/{window_specs}.{bpdens}.log"
     script:
         "utils/plot_heatmap.R"
 
@@ -677,65 +677,65 @@ rule plot_heatmap:
 
 rule mosaiClassifier_make_call:
     input:
-        probs = 'haplotag/table/{sample}/haplotag-likelihoods.{window}_fixed_norm.{bpdens}.Rdata'
+        probs = 'haplotag/table/{sample}/haplotag-likelihoods.{bin_size}_fixed_norm.{bpdens}.Rdata'
     output:
-        "sv_calls/{sample}/{window}_fixed_norm.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/simpleCalls_llr{llr}_poppriors{pop_priors,(TRUE|FALSE)}_haplotags{use_haplotags,(TRUE|FALSE)}_gtcutoff{gtcutoff,[0-9\\.]+}_regfactor{regfactor,[0-9]+}.txt"
+        "sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/simpleCalls_llr{llr}_poppriors{pop_priors,(TRUE|FALSE)}_haplotags{use_haplotags,(TRUE|FALSE)}_gtcutoff{gtcutoff,[0-9\\.]+}_regfactor{regfactor,[0-9]+}.txt"
     params:
         minFrac_used_bins = 0.8,
 	manual_segs = config["manual_segments"],
 	use_priors = config["use_priors"]
     log:
-        "log/mosaiClassifier_make_call/{sample}/{window}_fixed_norm.{bpdens}.llr{llr}.poppriors{pop_priors}.haplotags{use_haplotags}.gtcutoff{gtcutoff}.regfactor{regfactor}.log"
+        "log/mosaiClassifier_make_call/{sample}/{bin_size}_fixed_norm.{bpdens}.llr{llr}.poppriors{pop_priors}.haplotags{use_haplotags}.gtcutoff{gtcutoff}.regfactor{regfactor}.log"
     script:
         "utils/mosaiClassifier_call.snakemake.R"
 
 rule max_likelihood_sv_call:
     input:
-        probs = "sv_probabilities/simulation{seed}/{window_size}_fixed.{bpdense}/probabilities.Rdata"
+        probs = "sv_probabilities/simulation{seed}/{bin_size}_fixed.{bpdense}/probabilities.Rdata"
     output:
-        "sv_calls/simulation{seed}/{window_size}_fixed.{bpdense}/{sv_call_type}.txt"
+        "sv_calls/simulation{seed}/{bin_size}_fixed.{bpdense}/{sv_call_type}.txt"
     params:
         alt_allele_ll_reg_factor = config["alt_allele_ll_reg_factor"]
     log:
-        "log/max_likelihood_sv_call_{sv_call_type}/simulation{seed}/{window_size}_fixed.{bpdense}.log"
+        "log/max_likelihood_sv_call_{sv_call_type}/simulation{seed}/{bin_size}_fixed.{bpdense}.log"
     script:
         "utils/maxLikelihoodSVcall.snakemake.R"
 
 rule mosaiClassifier_calc_probs:
     input:
-        counts = "counts/{sample}/{windows}.txt.gz",
-        info   = "counts/{sample}/{windows}.info",
-        states = "strand_states/{sample}/{windows}.{bpdens}/intitial_strand_state" if config["simulation_mode"] else "strand_states/{sample}/{windows}.{bpdens}/final.txt",
-        bp = "counts/{sample}/manual_segments_counts.txt" if config["manual_segments"] else "segmentation2/{sample}/{windows}.{bpdens}.txt"
+        counts = "counts/{sample}/{window_specs}.txt.gz",
+        info   = "counts/{sample}/{window_specs}.info",
+        states = "strand_states/{sample}/{window_specs}.{bpdens}/intitial_strand_state" if config["simulation_mode"] else "strand_states/{sample}/{window_specs}.{bpdens}/final.txt",
+        bp = "counts/{sample}/manual_segments_counts.txt" if config["manual_segments"] else "segmentation2/{sample}/{window_specs}.{bpdens}.txt"
     params:
         manual_segs = config["manual_segments"]
     output:
-        output = "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/probabilities.Rdata"
+        output = "sv_probabilities/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/probabilities.Rdata"
     log:
-        "log/mosaiClassifier_calc_probs/{sample}/{windows}.{bpdens}.log"
+        "log/mosaiClassifier_calc_probs/{sample}/{window_specs}.{bpdens}.log"
     script:
         "utils/mosaiClassifier.snakemake.R"
 
 rule output_biallelic_likelihoods:
-    input: "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/probabilities.Rdata"
+    input: "sv_probabilities/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/probabilities.Rdata"
     output:
-        data_table = "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biallelic-likelihood-table.data",
-        matrix     = "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biallelic-likelihood-matrix.data",
-        matrix_rownames     = "sv_probabilities/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biallelic-likelihood-matrix-rownames.data"
+        data_table = "sv_probabilities/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biallelic-likelihood-table.data",
+        matrix     = "sv_probabilities/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biallelic-likelihood-matrix.data",
+        matrix_rownames     = "sv_probabilities/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/biallelic-likelihood-matrix-rownames.data"
     params:
         reg_factor = config["alt_allele_ll_reg_factor"]
     log:
-        "log/output_biallelic_likelihoods_{sample}-{windows}-{bpdens}.log"
+        "log/output_biallelic_likelihoods_{sample}-{window_specs}-{bpdens}.log"
     script:
         "utils/outputBiallelicLikelihoods.snakemake.R"
 
 rule call_complex_regions:
     input:
-        calls  = "sv_calls/{sample}/{windows}.{bpdens}/{method}.txt",
+        calls  = "sv_calls/{sample}/{window_specs}.{bpdens}/{method}.txt",
     output:
-        complex = "sv_calls/{sample}/{windows}.{bpdens}/{method}.complex.tsv",
+        complex = "sv_calls/{sample}/{window_specs}.{bpdens}/{method}.complex.tsv",
     log:
-        "log/call_complex_regions/{sample}/{windows}.{bpdens}.{method}.log"
+        "log/call_complex_regions/{sample}/{window_specs}.{bpdens}.{method}.log"
     shell:
         "utils/call-complex-regions.py --merge_distance 5000000 --ignore_haplotypes --min_cell_count 2 {input.calls} > {output.complex} 2>{log}"
 
@@ -753,37 +753,37 @@ if config["simulation_mode"] & config["skip_segmentation"]:
 
     rule mosaiClassifier_calc_probs_manual_segs:
         input:
-            counts = "counts/simulation{seed}/{window_size}_fixed.txt.gz",
-            info   = "simulation/info/genome{seed}-{window_size}.txt",
-            states = "simulation/sce/genome{seed}-{window_size}.txt",
+            counts = "counts/simulation{seed}/{bin_size}_fixed.txt.gz",
+            info   = "simulation/info/genome{seed}-{bin_size}.txt",
+            states = "simulation/sce/genome{seed}-{bin_size}.txt",
             bp     = "manaul_segmentation/simulation{seed}.bed"
-        output: "manaul_segmentation/simulation{seed}/{window_size}-sv_probabilities.Rdata"
+        output: "manaul_segmentation/simulation{seed}/{bin_size}-sv_probabilities.Rdata"
         params:
             manual_segs = config["manual_segments"]
         log:
-            "log/mosaiClassifier_calc_probs_manual_segments_simulation{seed}-{window_size}.log"
+            "log/mosaiClassifier_calc_probs_manual_segments_simulation{seed}-{bin_size}.log"
         script:
             "utils/mosaiClassifier.snakemake.R"
     rule output_biallelic_likelihoods:
-        input: "manaul_segmentation/simulation{seed}/{window_size}-sv_probabilities.Rdata"
+        input: "manaul_segmentation/simulation{seed}/{bin_size}-sv_probabilities.Rdata"
         output:
-            data_table = "manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-table.data",
-            matrix     = "manaul_segmentation/simulation{seed}/{window_size}-biallelic-likelihood-matrix.data",
-            matrix_rownames     = "sv_probabilities/{sample}/{windows}-biallelic-likelihood-matrix-rownames.data"
+            data_table = "manaul_segmentation/simulation{seed}/{bin_size}-biallelic-likelihood-table.data",
+            matrix     = "manaul_segmentation/simulation{seed}/{bin_size}-biallelic-likelihood-matrix.data",
+            matrix_rownames     = "sv_probabilities/{sample}/{window_specs}-biallelic-likelihood-matrix-rownames.data"
         log:
-            "log/output_biallelic_likelihoods_simulation{seed}-{window_size}.log"
+            "log/output_biallelic_likelihoods_simulation{seed}-{bin_size}.log"
         script:
             "utils/outputBiallelicLikelihoods.snakemake.R"
 elif config["manual_segments"]:
 
     rule mosaiClassifier_make_CN_call_manual_segs:
         input:
-            #probs = "manaul_segmentation/{sample}/{windows}.{bpdens}/sv_probabilities.Rdata"
-            probs = "sv_probabilities/{sample}/{windows}.{bpdens}/probabilities.Rdata"
+            #probs = "manaul_segmentation/{sample}/{window_specs}.{bpdens}/sv_probabilities.Rdata"
+            probs = "sv_probabilities/{sample}/{window_specs}.{bpdens}/probabilities.Rdata"
         output: 
-            calls = "manaul_segmentation/{sample}/{windows}.{bpdens}/CN_calls.txt"
+            calls = "manaul_segmentation/{sample}/{window_specs}.{bpdens}/CN_calls.txt"
         log:
-            "log/mosaiClassifier_make_CN_call_manual_segs_{sample}_{windows}.{bpdens}.log"
+            "log/mosaiClassifier_make_CN_call_manual_segs_{sample}_{window_specs}.{bpdens}.log"
         script:
             "utils/mosaiClassifier_CN_call.snakemake.R"
 
@@ -822,12 +822,12 @@ elif config["manual_segments"]:
 # the bam files. This rule extracts this information and prepares an input file.
 rule convert_strandphaser_input:
     input:
-        states = "strand_states/{sample}/{windows}.{bpdens}/intitial_strand_state",
+        states = "strand_states/{sample}/{window_specs}.{bpdens}/intitial_strand_state",
         info   = "counts/{sample}/500000_fixed.info"
     output:
-        "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/strandphaser_input.txt"
+        "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/strandphaser_input.txt"
     log:
-        "log/convert_strandphaser_input/{sample}/{windows}.{bpdens}.log"
+        "log/convert_strandphaser_input/{sample}/{window_specs}.{bpdens}.log"
     script:
         "utils/helper.convert_strandphaser_input.R"
 
@@ -843,9 +843,9 @@ rule install_StrandPhaseR:
 
 rule prepare_strandphaser_config_per_chrom:
     input:
-        "strand_states/{sample}/{windows}.{bpdens}/intitial_strand_state"
+        "strand_states/{sample}/{window_specs}.{bpdens}/intitial_strand_state"
     output:
-        "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR.{chrom}.config"
+        "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR.{chrom}.config"
     run:
         with open(output[0], "w") as f:
             print("[General]",                    file = f)
@@ -883,21 +883,21 @@ def locate_snv_vcf(wildcards):
 if not config["simulation_mode"]:
     rule run_strandphaser_per_chrom:
         input:
-            wcregions    = "strand_states/{sample}/{windows}.{bpdens}/strandphaser_input.txt",
+            wcregions    = "strand_states/{sample}/{window_specs}.{bpdens}/strandphaser_input.txt",
             snppositions = locate_snv_vcf,
-            configfile   = "strand_states/{sample}/{windows}.{bpdens}/StrandPhaseR.{chrom}.config",
+            configfile   = "strand_states/{sample}/{window_specs}.{bpdens}/StrandPhaseR.{chrom}.config",
             strandphaser = "utils/R-packages/StrandPhaseR/R/StrandPhaseR",
             bamfolder    = "bam/{sample}/selected"
         output:
-            "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
-            "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf",
+            "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
+            "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf",
         log:
-            "log/run_strandphaser_per_chrom/{sample}/{windows}.{bpdens}/{chrom}.log"
+            "log/run_strandphaser_per_chrom/{sample}/{window_specs}.{bpdens}/{chrom}.log"
         shell:
             """
             Rscript utils/StrandPhaseR_pipeline.R \
                 {input.bamfolder} \
-                strand_states/{wildcards.sample}/{wildcards.windows}.{wildcards.bpdens}/StrandPhaseR_analysis.{wildcards.chrom} \
+                strand_states/{wildcards.sample}/{wildcards.window_specs}.{wildcards.bpdens}/StrandPhaseR_analysis.{wildcards.chrom} \
                 {input.configfile} \
                 {input.wcregions} \
                 {input.snppositions} \
@@ -926,12 +926,12 @@ rule index_vcf:
 
 rule merge_strandphaser_vcfs:
     input:
-        vcfs=expand("strand_states/{{sample}}/{{windows}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz", chrom=config["chromosomes"]),
-        tbis=expand("strand_states/{{sample}}/{{windows}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz.tbi", chrom=config["chromosomes"]),
+        vcfs=expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz", chrom=config["chromosomes"]),
+        tbis=expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz.tbi", chrom=config["chromosomes"]),
     output:
-        vcf='phased-snvs/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.vcf.gz'
+        vcf='phased-snvs/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.vcf.gz'
     log:
-        "log/merge_strandphaser_vcfs/{sample}/{windows}.{bpdens}.log"
+        "log/merge_strandphaser_vcfs/{sample}/{window_specs}.{bpdens}.log"
     shell:
         "(bcftools concat -a {input.vcfs} | bcftools view -o {output.vcf} -O z --genotype het --types snps - ) > {log} 2>&1"
 
@@ -939,12 +939,12 @@ rule merge_strandphaser_vcfs:
 
 rule combine_strandphaser_output:
     input:
-        expand("strand_states/{{sample}}/{{windows}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
+        expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
                 chrom = config["chromosomes"])
     output:
-        "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/strandphaser_output.txt"
+        "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/strandphaser_output.txt"
     log:
-        "log/combine_strandphaser_output/{sample}/{windows}.{bpdens}.log"
+        "log/combine_strandphaser_output/{sample}/{window_specs}.{bpdens}.log"
     shell:
         """
         set +o pipefail
@@ -955,13 +955,13 @@ rule combine_strandphaser_output:
 
 rule convert_strandphaser_output:
     input:
-        phased_states  = "strand_states/{sample}/{windows}.{bpdens}/strandphaser_output.txt",
-        initial_states = "strand_states/{sample}/{windows}.{bpdens}/intitial_strand_state",
+        phased_states  = "strand_states/{sample}/{window_specs}.{bpdens}/strandphaser_output.txt",
+        initial_states = "strand_states/{sample}/{window_specs}.{bpdens}/intitial_strand_state",
         info           = "counts/{sample}/500000_fixed.info"
     output:
-        "strand_states/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/final.txt"
+        "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/final.txt"
     log:
-        "log/convert_strandphaser_output/{sample}/{windows}.{bpdens}.log"
+        "log/convert_strandphaser_output/{sample}/{window_specs}.{bpdens}.log"
     script:
         "utils/helper.convert_strandphaser_output.R"
 
@@ -973,15 +973,15 @@ rule convert_strandphaser_output:
 if not config["simulation_mode"]:
     rule haplotag_bams:
         input:
-            vcf='phased-snvs/{sample}/{windows}.{bpdens}.vcf.gz',
-            tbi='phased-snvs/{sample}/{windows}.{bpdens}.vcf.gz.tbi',
+            vcf='phased-snvs/{sample}/{window_specs}.{bpdens}.vcf.gz',
+            tbi='phased-snvs/{sample}/{window_specs}.{bpdens}.vcf.gz.tbi',
             bam='bam/{sample}/selected/{bam}.bam',
             bai='bam/{sample}/selected/{bam}.bam.bai',
             ref = config["reference"],
         output:
-            bam='haplotag/bam/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/{bam}.bam',
+            bam='haplotag/bam/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/{bam}.bam',
         log:
-            "log/haplotag_bams/{sample}/{windows}.{bpdens}/{bam}.log"
+            "log/haplotag_bams/{sample}/{window_specs}.{bpdens}/{bam}.log"
         shell:
             "whatshap haplotag -o {output.bam} -r {input.ref} {input.vcf} {input.bam} > {log} 2>{log}"
 
@@ -995,32 +995,32 @@ if not config["simulation_mode"]:
 
     rule create_haplotag_table:
         input:
-            bam='haplotag/bam/{sample}/{windows}.{bpdens}/{cell}.bam',
-            bai='haplotag/bam/{sample}/{windows}.{bpdens}/{cell}.bam.bai',
-            bed = "haplotag/bed/{sample}/{windows}.{bpdens}.bed"
+            bam='haplotag/bam/{sample}/{window_specs}.{bpdens}/{cell}.bam',
+            bai='haplotag/bam/{sample}/{window_specs}.{bpdens}/{cell}.bam.bai',
+            bed = "haplotag/bed/{sample}/{window_specs}.{bpdens}.bed"
         output:
-            tsv='haplotag/table/{sample}/by-cell/haplotag-counts.{cell}.{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.tsv'
+            tsv='haplotag/table/{sample}/by-cell/haplotag-counts.{cell}.{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.tsv'
         log:
-            "log/create_haplotag_table/{sample}.{cell}.{windows}.{bpdens}.log"
+            "log/create_haplotag_table/{sample}.{cell}.{window_specs}.{bpdens}.log"
         script:
             "utils/haplotagTable.snakemake.R"
 
 rule merge_haplotag_tables:
     input:
-        tsvs=lambda wc: ['haplotag/table/{}/by-cell/haplotag-counts.{}.{}.{}.tsv'.format(wc.sample,cell,wc.windows,wc.bpdens) for cell in BAM_PER_SAMPLE[wc.sample]],
+        tsvs=lambda wc: ['haplotag/table/{}/by-cell/haplotag-counts.{}.{}.{}.tsv'.format(wc.sample,cell,wc.window_specs,wc.bpdens) for cell in BAM_PER_SAMPLE[wc.sample]],
     output:
-        tsv='haplotag/table/{sample}/full/haplotag-counts.{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.tsv'
+        tsv='haplotag/table/{sample}/full/haplotag-counts.{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.tsv'
     shell:
         '(head -n1 {input.tsvs[0]} && tail -q -n +2 {input.tsvs}) > {output.tsv}'
 
 
 rule create_haplotag_likelihoods:
     input:
-        haplotag_table='haplotag/table/{sample}/full/haplotag-counts.{windows}.{bpdens}.tsv',
-        sv_probs_table = 'sv_probabilities/{sample}/{windows}.{bpdens}/probabilities.Rdata',
-    output: 'haplotag/table/{sample}/haplotag-likelihoods.{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.Rdata'
+        haplotag_table='haplotag/table/{sample}/full/haplotag-counts.{window_specs}.{bpdens}.tsv',
+        sv_probs_table = 'sv_probabilities/{sample}/{window_specs}.{bpdens}/probabilities.Rdata',
+    output: 'haplotag/table/{sample}/haplotag-likelihoods.{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.Rdata'
     log:
-        "log/create_haplotag_likelihoods/{sample}.{windows}.{bpdens}.log"
+        "log/create_haplotag_likelihoods/{sample}.{window_specs}.{bpdens}.log"
     script:
         "utils/haplotagProbs.snakemake.R"
 
@@ -1129,14 +1129,14 @@ rule split_external_snv_calls:
 
 rule summary_statistics:
     input:
-        segmentation = 'segmentation2/{sample}/{windows}.{bpdens}.txt',
-        strandstates = 'strand_states/{sample}/{windows}.{bpdens}/intitial_strand_state',
-        sv_calls = 'sv_calls/{sample}/{windows}.{bpdens}/{method}.txt',
-        complex = "sv_calls/{sample}/{windows}.{bpdens}/{method}.complex.tsv",
+        segmentation = 'segmentation2/{sample}/{window_specs}.{bpdens}.txt',
+        strandstates = 'strand_states/{sample}/{window_specs}.{bpdens}/intitial_strand_state',
+        sv_calls = 'sv_calls/{sample}/{window_specs}.{bpdens}/{method}.txt',
+        complex = "sv_calls/{sample}/{window_specs}.{bpdens}/{method}.complex.tsv",
     output:
-        tsv = 'stats/{sample}/{windows}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/{method}.tsv',
+        tsv = 'stats/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/{method}.tsv',
     log:
-        'log/summary_statistics/{sample}/{windows}.{bpdens}/{method}.log'
+        'log/summary_statistics/{sample}/{window_specs}.{bpdens}/{method}.log'
     run:
         p = []
         try:
@@ -1158,12 +1158,9 @@ rule summary_statistics:
 
 rule aggregate_summary_statistics:
     input:
-        tsv=expand("stats/{{sample}}/{window}_fixed_norm.{bpdens}/{method}.tsv", window = [100000], bpdens = BPDENS, method = METHODS),
+        tsv=expand("stats/{{sample}}/{bin_size}_fixed_norm.{bpdens}/{method}.tsv", bin_size = [100000], bpdens = BPDENS, method = METHODS),
     output:
         tsv="stats-merged/{sample}/stats.tsv"
     shell:
         "(head -n1 {input.tsv[0]} && tail -n1 -q {input.tsv}) > {output}"
     
-
-
-
