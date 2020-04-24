@@ -95,19 +95,12 @@ if config["simulation_mode"]:
 elif config["manual_segments"]:
     rule all:
         input:
-            expand("plots/{sample}/{window}_fixed.pdf",      sample = SAMPLES, window = [50000, 100000, 200000, 500000]),
-            expand("plots/{sample}/{window}_fixed_norm.pdf", sample = SAMPLES, window = [50000, 100000, 200000]),
-            expand("ploidy/{sample}/ploidy.{chrom}.txt", sample = SAMPLES, chrom = config["chromosomes"]),
-            expand("halo/{sample}/{window}_{suffix}.json.gz",
+             expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/{method}.txt",
                    sample = SAMPLES,
+                   chrom = config["chromosomes"],
                    window = [100000],
-                   suffix = ["fixed", "fixed_norm"]),
-#        input:
-#            expand("manaul_segmentation/{sample}/{window}_fixed_norm.{bpdens}/CN_calls.txt",
-#                   sample = SAMPLES,
-#                   window = [100000],
-#                   bpdens = BPDENS),
-#            #expand("counts/{sample}/manual_segments_counts.txt", sample = SAMPLES),
+                   bpdens = BPDENS,
+                   method = METHODS),
 
 
 else:
@@ -521,44 +514,15 @@ if not config["simulation_mode"]:
             > {log} 2>&1
             """
 
-if config["manual_segments"]:
-	rule count_reads:
-		input:
-		    bam = "bam/{sample}/selected/{bam}.bam",
-		    bai = "bam/{sample}/selected/{bam}.bam.bai",
-		    bed = "manaul_segmentation/{sample}.bed",
-		output:
-		    w_counts = temp("counts/{sample}/manual_segments_{bam}_w_counts.txt"),
-		    c_counts = temp("counts/{sample}/manual_segments_{bam}_c_counts.txt"),
-		log:
-		    "log/{sample}/count_reads_{bam}.log"
-		shell:
-		    """
-		    (time
-		    bedtools intersect -nonamecheck -a {input.bed} -b <(samtools view -Sb -f 16 {input.bam}) -c > {output.w_counts} && \
-		    bedtools intersect -nonamecheck -a {input.bed} -b <(samtools view -Sb -F 16 {input.bam}) -c > {output.c_counts} ) \
-		    > {log} 2>&1
-		    """
-
-	rule merge_count_files:
-		input:
-		    w_counts = lambda wc: temp(expand("counts/" + wc.sample + "/manual_segments_{bam}_w_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR"),
-		    c_counts = lambda wc: temp(expand("counts/" + wc.sample + "/manual_segments_{bam}_c_counts.txt", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR"),
-		output: "counts/{sample}/manual_segments_counts.txt",
-		log:
-		    "log/{sample}/merge_count_files.log"
-		#shell:"cat {input} | gzip -c > {output}"
-		script:"utils/merge_count_files.snakemake.R"
-
-#	rule pysam_count_reads:
-#		input:
-#		    bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in #BAM_PER_SAMPLE else "FOOBAR",
-#		    bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in #BAM_PER_SAMPLE else "FOOBAR",
-#		    bed = "manaul_segmentation/{sample}.bed",
-#		output: "counts/{sample}/manual_segments_counts.txt.gz",
-#		log:
-#		    "log/{sample}/merge_count_files.log"
-#		script:"utils/pysam_count_files.py"
+if config["manual_segments"]:			
+	rule watson_crick_counts:
+        	input:
+                	bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+                	bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",                bed = "manaul_segmentation/{sample}.bed",
+        	output: "counts/{sample}/manual_segments_counts.txt",
+        	log:
+                	"log/{sample}/merge_count_files.log"
+        	shell:"python3 utils/watson_crick_counts.py -i {input.bam} -b {input.bed} -c {output}"
 
 
 rule extract_single_cell_counts:
@@ -718,7 +682,8 @@ rule mosaiClassifier_make_call:
         "sv_calls/{sample}/{window}_fixed_norm.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/simpleCalls_llr{llr}_poppriors{pop_priors,(TRUE|FALSE)}_haplotags{use_haplotags,(TRUE|FALSE)}_gtcutoff{gtcutoff,[0-9\\.]+}_regfactor{regfactor,[0-9]+}.txt"
     params:
         minFrac_used_bins = 0.8,
-	manual_segs = config["manual_segments"]
+	manual_segs = config["manual_segments"],
+	use_priors = config["use_priors"]
     log:
         "log/mosaiClassifier_make_call/{sample}/{window}_fixed_norm.{bpdens}.llr{llr}.poppriors{pop_priors}.haplotags{use_haplotags}.gtcutoff{gtcutoff}.regfactor{regfactor}.log"
     script:
@@ -1199,3 +1164,5 @@ rule aggregate_summary_statistics:
     shell:
         "(head -n1 {input.tsv[0]} && tail -n1 -q {input.tsv}) > {output}"
     
+
+
