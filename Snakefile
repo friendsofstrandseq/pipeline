@@ -53,6 +53,20 @@ METHODS = [
     "simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0.05_regfactor6",
 ]
 
+poppriors = "TRUE" if config["use_priors"] else "FALSE"
+
+METHODS_MANUAL_SEGMENTS = [
+    "simpleCalls_llr4_poppriors"+poppriors+"_haplotagsFALSE_gtcutoff0_regfactor6",
+    "simpleCalls_llr4_poppriors"+poppriors+"_haplotagsFALSE_gtcutoff0.005_regfactor6",
+    "simpleCalls_llr4_poppriors"+poppriors+"_haplotagsFALSE_gtcutoff0.01_regfactor6",
+    "simpleCalls_llr4_poppriors"+poppriors+"_haplotagsFALSE_gtcutoff0.02_regfactor6",
+    "simpleCalls_llr4_poppriors"+poppriors+"_haplotagsFALSE_gtcutoff0.03_regfactor6",
+    "simpleCalls_llr4_poppriors"+poppriors+"_haplotagsFALSE_gtcutoff0.04_regfactor6",
+    "simpleCalls_llr4_poppriors"+poppriors+"_haplotagsFALSE_gtcutoff0.05_regfactor6",
+]
+
+METHODS = METHODS_MANUAL_SEGMENTS if config["manual_segments"] else METHODS
+
 BPDENS = [
     "selected_j{}_s{}".format(joint, single) for joint in [0.1,0.01] for single in [0.5,0.1]
 ]
