@@ -3,7 +3,7 @@ import sys
 import pysam
 from pathlib import Path
 import glob
-def counts(input_bam, input_bed ,counts_output):
+def counts(sample, input_bam, input_bed ,counts_output):
     counts_file = open (counts_output, 'w')
     watson_count=0
     crick_count=0
@@ -13,7 +13,6 @@ def counts(input_bam, input_bed ,counts_output):
     for file in glob_path:
         file_name = str(file).strip().split("/")[-1]
         cell=file_name.strip().split(".bam")[0]
-        sample= cell.strip().split(".")[0]
         bam_file = pysam.AlignmentFile(file, "rb")
         with open(input_bed, 'r') as bed_file:
             next(bed_file) #skipping the header in bed file
@@ -30,17 +29,18 @@ def counts(input_bam, input_bed ,counts_output):
                     else:
                         pass
 
-                counts_file.write(str(chromosome)+ "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) + "\t" + str(crick_count)+ "\t" + str(watson_count)+"\n")
+                counts_file.write(str(chromosome)+ "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + sample + "\t" + str(cell) + "\t" + str(crick_count)+ "\t" + str(watson_count)+"\n")
                 watson_count =0
                 crick_count= 0
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("-s", "--sample", help="The sample name", required=True)
     parser.add_argument("-i", "--input_bam", help="The input bam file", required=True)
     parser.add_argument("-b", "--input_bed", type=str, help="The bed file with segments",required=True)
     parser.add_argument("-c", "--counts_output", type=str, help="The output file with number of watson and reads in each segment in the bed file", required=True)
     args = parser.parse_args()
-    counts(args.input_bam, args.input_bed, args.counts_output)
+    counts(args.sample, args.input_bam, args.input_bed, args.counts_output)
 
 

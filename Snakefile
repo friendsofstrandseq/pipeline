@@ -536,7 +536,7 @@ if config["manual_segments"]:
         	output: "counts/{sample}/manual_segments_counts.txt",
         	log:
                 	"log/{sample}/watson_crick_counts.log"
-        	shell:"python3 utils/watson_crick_counts.py -i {input.bam} -b {input.bed} -c {output}"
+        	shell:"python3 utils/watson_crick_counts.py -s {wildcards.sample} -i {input.bam} -b {input.bed} -c {output}"
 
 
 rule extract_single_cell_counts:
