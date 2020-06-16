@@ -533,12 +533,12 @@ if config["manual_segments"]:
         	input:
                 	bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
                 	bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",                bed = "manaul_segmentation/{sample}.bed",
+			mapping= "mapping_counts_allchrs.txt"
 		output:
 			processing_counts="counts/{sample}/manual_segments_counts.txt",
 			plotting_counts="counts/{sample}/manual_segments_counts_for_plots.txt",
 		log:"log/{sample}/watson_crick_counts.log"
-		shell:"unzip mapping_counts_allchrs.txt.gz | python3 utils/watson_crick_counts.py -s {wildcards.sample} -i {input.bam} -b {input.bed} -n {output.processing_counts} -p {output.plotting_counts} -m mapping_counts_allchrs.txt"
-
+		shell:"python3 utils/watson_crick_counts.py -s {wildcards.sample} -i {input.bam} -b {input.bed} -n {output.processing_counts} -p {output.plotting_counts} -m {input.mapping}"
 
 rule extract_single_cell_counts:
     input:
