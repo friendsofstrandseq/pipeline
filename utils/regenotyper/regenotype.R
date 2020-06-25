@@ -43,15 +43,15 @@ print('Processing and summarizing information, making plots')
 print('This can take a few minutes.')
 
 ### This block is for debug mode. ###
-p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/sv_probabilities/HG00733/100000_fixed_norm.selected_j0.1_s0.5/probabilities.Rdata'
-p_link ='../../results/HG733_postcorr2/probabilities.Rdata'
-outdir_raw = 'aud2/'
-labels_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/HG733_postcorr/naming_HG733.bed'
+#p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/sv_probabilities/HG00733/100000_fixed_norm.selected_j0.1_s0.5/probabilities.Rdata'
+#p_link ='../../results/HG733_postcorr2/probabilities.Rdata'
+#outdir_raw = 'aud2/'
+#labels_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/HG733_postcorr/naming_HG733.bed'
 #####################################
 
-#p_link = opt$file
-#labels_link = opt$bed
-#outdir_raw = opt$outdir
+p_link = opt$file
+xlabels_link = opt$bed
+outdir_raw = opt$outdir
 
 
 
