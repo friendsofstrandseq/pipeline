@@ -532,7 +532,7 @@ if config["manual_segments"]:
 	rule watson_crick_counts:
         	input:
                 	bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
-                	bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",                bed = "manaul_segmentation/{sample}.bed",
+                	bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",                bed = "manual_segmentation/{sample}.bed",
 			mapping= "mapping_counts_allchrs.txt"
 		output:
 			processing_counts="counts/{sample}/manual_segments_counts.txt",
@@ -763,7 +763,7 @@ if config["simulation_mode"] & config["skip_segmentation"]:
         input:
             genome     = "simulation/genome/genome{seed}.tsv"
         output:
-            bp     = "manaul_segmentation/simulation{seed}.bed"
+            bp     = "manual_segmentation/simulation{seed}.bed"
         shell: "cut -f1-3 {input} > {output}"
 
     rule mosaiClassifier_calc_probs_manual_segs:
@@ -771,8 +771,8 @@ if config["simulation_mode"] & config["skip_segmentation"]:
             counts = "counts/simulation{seed}/{bin_size}_fixed.txt.gz",
             info   = "simulation/info/genome{seed}-{bin_size}.txt",
             states = "simulation/sce/genome{seed}-{bin_size}.txt",
-            bp     = "manaul_segmentation/simulation{seed}.bed"
-        output: "manaul_segmentation/simulation{seed}/{bin_size}-sv_probabilities.Rdata"
+            bp     = "manual_segmentation/simulation{seed}.bed"
+        output: "manual_segmentation/simulation{seed}/{bin_size}-sv_probabilities.Rdata"
         params:
             manual_segs = config["manual_segments"]
         log:
@@ -780,10 +780,10 @@ if config["simulation_mode"] & config["skip_segmentation"]:
         script:
             "utils/mosaiClassifier.snakemake.R"
     rule output_biallelic_likelihoods:
-        input: "manaul_segmentation/simulation{seed}/{bin_size}-sv_probabilities.Rdata"
+        input: "manual_segmentation/simulation{seed}/{bin_size}-sv_probabilities.Rdata"
         output:
-            data_table = "manaul_segmentation/simulation{seed}/{bin_size}-biallelic-likelihood-table.data",
-            matrix     = "manaul_segmentation/simulation{seed}/{bin_size}-biallelic-likelihood-matrix.data",
+            data_table = "manual_segmentation/simulation{seed}/{bin_size}-biallelic-likelihood-table.data",
+            matrix     = "manual_segmentation/simulation{seed}/{bin_size}-biallelic-likelihood-matrix.data",
             matrix_rownames     = "sv_probabilities/{sample}/{window_specs}-biallelic-likelihood-matrix-rownames.data"
         log:
             "log/output_biallelic_likelihoods_simulation{seed}-{bin_size}.log"
@@ -793,10 +793,10 @@ elif config["manual_segments"]:
 
     rule mosaiClassifier_make_CN_call_manual_segs:
         input:
-            #probs = "manaul_segmentation/{sample}/{window_specs}.{bpdens}/sv_probabilities.Rdata"
+            #probs = "manual_segmentation/{sample}/{window_specs}.{bpdens}/sv_probabilities.Rdata"
             probs = "sv_probabilities/{sample}/{window_specs}.{bpdens}/probabilities.Rdata"
         output: 
-            calls = "manaul_segmentation/{sample}/{window_specs}.{bpdens}/CN_calls.txt"
+            calls = "manual_segmentation/{sample}/{window_specs}.{bpdens}/CN_calls.txt"
         log:
             "log/mosaiClassifier_make_CN_call_manual_segs_{sample}_{window_specs}.{bpdens}.log"
         script:
@@ -853,7 +853,8 @@ rule install_StrandPhaseR:
         "log/install_StrandPhaseR.log"
     shell:
         """
-        TAR=$(which tar) Rscript utils/install_strandphaser.R > {log} 2>&1
+        echo sup
+		# TAR=$(which tar) Rscript utils/install_strandphaser.R > {log} 2>&1
         """
 
 rule prepare_strandphaser_config_per_chrom:
@@ -901,7 +902,7 @@ if not config["simulation_mode"]:
             wcregions    = "strand_states/{sample}/{window_specs}.{bpdens}/strandphaser_input.txt",
             snppositions = locate_snv_vcf,
             configfile   = "strand_states/{sample}/{window_specs}.{bpdens}/StrandPhaseR.{chrom}.config",
-            strandphaser = "utils/R-packages/StrandPhaseR/R/StrandPhaseR",
+            # strandphaser = "utils/R-packages/StrandPhaseR/R/StrandPhaseR",
             bamfolder    = "bam/{sample}/selected"
         output:
             "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
