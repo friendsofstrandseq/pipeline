@@ -98,11 +98,12 @@ print_usage_and_stop = function(msg = NULL) {
 args <- commandArgs(trailingOnly = T)
 
 if (length(args)< 3) print_usage_and_stop("[Error] Too few arguments!")
-
+m_counts = args[length(args)-3]
 f_counts = args[length(args)-2]
 CHROM    = args[length(args)-1]
 f_out    = args[length(args)]
-
+f_xstart=NULL
+f_xend=NULL
 f_segments = NULL
 f_calls    = NULL
 f_truth    = NULL
@@ -111,10 +112,12 @@ f_complex  = NULL
 cells_per_page = 8
 show_none  = T
 
-if (length(args)>3) {
-  if (!all(grepl("^(strand|calls|segments|per-page|truth|no-none|complex|singlecellsegments)=?", args[1:(length(args)-3)]))) {
+if (length(args)>4) {
+  if (!all(grepl("^(x_start|x_end|strand|calls|segments|per-page|truth|no-none|complex|singlecellsegments)=?", args[1:(length(args)-4)]))) {
     print_usage_and_stop("[Error]: Options must be one of `calls`, `segments`, `per-page`, or `truth`") }
-  for (op in args[1:(length(args)-3)]) {
+  for (op in args[1:(length(args)-4)]) {
+    if (grepl("^x_start=", op)) f_xstart = str_sub(op, 9)
+    if (grepl("^x_end=", op)) f_xend = str_sub(op, 7)
     if (grepl("^segments=", op)) f_segments = str_sub(op, 10)
     if (grepl("^calls=", op))    f_calls = str_sub(op, 7)
     if (grepl("^truth=", op))    f_truth = str_sub(op, 7)
@@ -153,6 +156,21 @@ if (length(args)>3) {
   setkey(counts, chrom, sample_cell)
   bins = unique(counts[, .(chrom, start, end)])
 
+
+### Check manual-segments-count
+    message(" * Reading manual segments counts ", f_counts, "...")
+    seg_counts = fread(m_counts)
+    assert_that("chrom"  %in% colnames(seg_counts),
+		"start"  %in% colnames(seg_counts),
+		"end"    %in% colnames(seg_counts),
+		"sample" %in% colnames(seg_counts),
+		"cell"   %in% colnames(seg_counts),
+		"W"      %in% colnames(seg_counts),
+		"C"      %in% colnames(seg_counts)) %>% invisible
+    seg_counts$sample= substr(seg_counts$sample, 1,7)
+    seg_counts[, sample_cell := paste(sample, "-", cell)]
+    setkey(seg_counts, chrom, sample_cell)
+    segments = unique(seg_counts[, .(chrom, start, end)])
 ### Check CHROM:
 assert_that(CHROM %in% unique(counts$chrom)) %>% invisible
 counts = counts[chrom == CHROM]
@@ -169,7 +187,7 @@ if (!is.null(f_calls)) {
               ("SV_class" %in% colnames(svs) | "sv_call_name" %in% colnames(svs) )) %>% invisible
   if(!("SV_class" %in% colnames(svs))) {
     svs[, SV_class := sv_call_name]
-  }
+  } 
   assert_that(all(svs$SV_class %in% names(manual_colors))) %>% invisible
   svs[, sample_cell := paste(sample, "-", cell)]
 
@@ -288,6 +306,7 @@ while (i <= n_cells) {
 
     # Start major plot
     plt <- ggplot(local_counts)
+    manual_seg_counts = seg_counts[CELLS, on = .(sample_cell), nomatch = 0]
 
     # Add background colors for segments, if available:
     if (!is.null(f_segments)) {
@@ -310,7 +329,10 @@ while (i <= n_cells) {
           geom_rect(data = local_svs, alpha = 1,
                     aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf, fill = SV_class))
       }
-    }
+    
+   }
+  
+	    
 
     # Add bars for true SVs, if available
     if (!is.null(f_truth)) {
@@ -357,9 +379,8 @@ while (i <= n_cells) {
 
     message("   * Adding actual W/C counts")
     plt <- plt +
-        geom_rect(aes(xmin = start, xmax=end, ymin=0, ymax = -w), fill='sandybrown') +
-        geom_rect(aes(xmin = start, xmax=end, ymin=0, ymax =  c), fill='paleturquoise4')
-
+        geom_rect(aes(xmin = start, xmax=end, ymin=0, ymax = -w), fill='grey42') +
+        geom_rect(aes(xmin = start, xmax=end, ymin=0, ymax =  c), fill='grey74')
 
     # Highlight None bins, if requested
     none_bins <- local_counts[class == "None"]
@@ -368,15 +389,29 @@ while (i <= n_cells) {
       plt <- plt +
         geom_segment(data = none_bins, aes(x=start, xend=end, y=0, yend=0), col = "black", size = 2)
     }
+    
+    message("   * Adding manual_segments W/C counts")
+    plt <- plt +
+	    geom_rect(data= manual_seg_counts,  alpha = 0.6, aes(xmin = start, xmax=end, ymin=0, ymax = -W),, fill='sandybrown')+
+	    geom_rect(data= manual_seg_counts, alpha=0.6, aes(xmin = start, xmax=end, ymin=0, ymax =  C), fill='paleturquoise4')                                      
 
 
-    message("   * Adding labels, etc.")
+    #message("   * Adding labels, etc.")
+    if (!is.null(f_xstart)&& !is.null(f_xend)) {
+      plt <- plt + 
+	coord_cartesian(ylim = c(-y_lim, y_lim), xlim=c(as.numeric(f_xstart), as.numeric(f_xend)))
+     }else{
+        plt <- plt + 
+          coord_cartesian(ylim = c(-y_lim, y_lim))
+    }
+    
     plt <- plt +
         facet_wrap(~ sample_cell, ncol = 1) +
         ylab("Watson | Crick") + xlab(NULL) +
         scale_x_continuous(breaks = pretty_breaks(12), labels = format_Mb) +
         scale_y_continuous(breaks = pretty_breaks(3)) +
-        coord_cartesian(ylim = c(-y_lim, y_lim)) +
+	
+	#if (!is.null(f_xstart) && (!is.null(f_xend)) coord_cartesian(ylim = c(-y_lim, y_lim), xlim=c(f_xstart, f_xend)) }+
         scale_fill_manual(values = manual_colors) +
         theme_minimal() +
         theme(panel.spacing = unit(0, "lines"),
@@ -385,7 +420,6 @@ while (i <= n_cells) {
               strip.text = element_text(size = 5),
               legend.position = "bottom") +
         ggtitle(paste("data:", basename(f_counts), "chromosome:", CHROM))
-
     message("   * outputting")
     print(plt)
     i = i + cells_per_page
