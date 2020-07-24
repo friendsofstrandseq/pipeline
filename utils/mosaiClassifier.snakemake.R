@@ -33,6 +33,10 @@ info   = fread(snakemake@input[["info"]])
 strand = fread(snakemake@input[["states"]])
 segs   = fread(snakemake@input[["bp"]])
 
+#As binomial model is discrete, we need integer counts
+segs$C=round(segs$C)
+segs$W=round(segs$W)
+
 
 # DEPERECATED: this version of normalization is no longer used
 # is there a normalization file given?
