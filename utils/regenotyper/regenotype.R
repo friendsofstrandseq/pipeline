@@ -50,7 +50,7 @@ print('This can take a few minutes.')
 #####################################
 
 p_link = opt$file
-xlabels_link = opt$bed
+labels_link = opt$bed
 outdir_raw = opt$outdir
 
 
@@ -120,7 +120,7 @@ for (group in unique(pg_a$group)){
   # save. htmlwidgets does not work with relative paths, so we need a little workaround
   # (info and code taken from https://stackoverflow.com/questions/41399795/savewidget-from-htmlwidget-in-r-cannot-save-html-file-in-another-folder)
   savepath = paste0(outdir, 'bellplot.html')
-  suppressMessages(htmlwidgets::saveWidget(as_widget(p), file.path(normalizePath(dirname(savepath)),basename(savepath))))
+  #suppressMessages(htmlwidgets::saveWidget(as_widget(p), file.path(normalizePath(dirname(savepath)),basename(savepath))))
   ggsave(filename=paste0(outdir, 'bellplot.png'), width=30, height=12, units='cm', device='png')
   
   #### b) write table ####
