@@ -1,3 +1,5 @@
+#Hufsah Ashraf, 3.8.2020
+#script for getting normalized watson aand crick counts for each arbitrary segment
 import argparse
 import sys
 import pysam
