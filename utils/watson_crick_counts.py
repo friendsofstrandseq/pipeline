@@ -11,6 +11,7 @@ from collections import defaultdict
 def counts(sample, input_bam, input_bed ,norm_count_output, mapping_counts, norm_plot_output):
     dictionary= defaultdict(lambda: defaultdict(tuple))
     mapping_counts_file = open(mapping_counts, 'r')
+    #Store the whole mapability track
     for lines in mapping_counts_file:
         line= lines.strip().split("\t")
         chrom= line[0]
@@ -70,20 +71,20 @@ def counts(sample, input_bam, input_bed ,norm_count_output, mapping_counts, norm
                     if seg_start_bin >= m[1]: 
                         continue
                     else:
-                        if seg_end<=m[1]:
+                        #if segment ends before the current bin_ends then we are done with this interval
+                        if seg_end<m[1]:
                             break
-                                #if the segment starts somewhere inside this bin, skip it and start read counting from where the next bin starts
+                        #if the segment starts somewhere inside this bin, skip it
                         elif seg_start_bin>m[0]: 
                             continue
-                        #if the segment starts where this bin starts, start read counting.
+                        #otherwise start counting
                         elif seg_start_bin<=m[0] and seg_end >=m[1] and mapped_count>5 :
                             seg_start_bin=m[0]
                             seg_end_bin=m[1]
                              
                             normalizing_factor_counts= 100/mapped_count
                                                                                                                                              
-                            # This super nice .fetch function seems to collect all bam entries that overlap 
-                            # with that segment.
+                            # Fetch all bam entries that fall in this bin.
                             for read in bam_file.fetch(chromosome, seg_start_bin, seg_end_bin):
                                 # We want to exclude reads that match any of these 5 failing criteria
                                 # We use the fact that 'any' is lazy and stops as soon as it finds a true
