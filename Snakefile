@@ -182,7 +182,7 @@ rule simulate_lineage_tree_and_svs:
     params:
         cell_count = config["simulation_cell_count"],
         subclonality = config["subclonality"],
-	min_subclonal_sv_size = config["min_subclonal_sv_size"]
+        min_subclonal_sv_size = config["min_subclonal_sv_size"]
     log:
         "log/simulate_lineage_tree/lineage_tree{seed}.log"
     script:
@@ -448,6 +448,7 @@ rule generate_halo_json:
 ################################################################################
 
 if not config["simulation_mode"]:
+    #CHECK
     rule generate_exclude_file_1:
         output:
             temp("log/exclude_file.temp")
@@ -455,13 +456,14 @@ if not config["simulation_mode"]:
             bam = expand("bam/{sample}/selected/{bam}.bam", sample = SAMPLES[0], bam = BAM_PER_SAMPLE[SAMPLES[0]][0])
         log:
             "log/generate_exclude_file_1.log"
-        params:
-            samtools = config["samtools"]
+        conda:
+            "tools.yml"
         shell:
             """
-            {params.samtools} view -H {input.bam} | awk '/^@SQ/' > {output} 2> {log}
+            samtools view -H {input.bam} | awk '/^@SQ/' > {output} 2> {log}
             """
 
+#CHECK
     rule generate_exclude_file_2:
         output:
             "log/exclude_file"
@@ -478,6 +480,7 @@ if not config["simulation_mode"]:
                         if contig not in params.chroms:
                             print(contig, file = out)
 
+#CHECK
     rule mosaic_count_fixed:
         input:
             bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
@@ -488,6 +491,8 @@ if not config["simulation_mode"]:
             info   = "counts/{sample}/{bin_size}_fixed.info"
         log:
             "log/{sample}/mosaic_count_fixed.{bin_size}.log"
+        conda:
+            "mosaicatcher.yml"
         params:
             mc_command = config["mosaicatcher"]
         shell:
@@ -528,18 +533,22 @@ if not config["simulation_mode"]:
             > {log} 2>&1
             """
 
-if config["manual_segments"]:			
-	rule watson_crick_counts:
-        	input:
-                	bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
-                	bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",                bed = "manual_segmentation/{sample}.bed",
-			mapping= "mapping_counts_allchrs.txt"
-		output:
-			processing_counts="counts/{sample}/manual_segments_counts.txt",
-			plotting_counts="counts/{sample}/manual_segments_counts_for_plots.txt",
-		log:"log/{sample}/watson_crick_counts.log"
-		shell:"python3 utils/watson_crick_counts.py -s {wildcards.sample} -i {input.bam} -b {input.bed} -n {output.processing_counts} -p {output.plotting_counts} -m {input.mapping}"
+if config["manual_segments"]:
+#CHECK
+    rule watson_crick_counts:
+        input:
+            bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+            bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",                bed = "manual_segmentation/{sample}.bed",
+            mapping= "mapping_counts_allchrs.txt"
+        output:
+            processing_counts="counts/{sample}/manual_segments_counts.txt",
+            plotting_counts="counts/{sample}/manual_segments_counts_for_plots.txt",
+        conda:
+            "tools.yml"
+        log:"log/{sample}/watson_crick_counts.log"
+        shell:"python3 utils/watson_crick_counts.py -s {wildcards.sample} -i {input.bam} -b {input.bed} -n {output.processing_counts} -p {output.plotting_counts} -mc {input.mapping}"
 
+#CHECK
 rule extract_single_cell_counts:
     input:
         "counts/{sample}/{bin_size}_{file_name}.txt.gz"
@@ -553,11 +562,14 @@ rule extract_single_cell_counts:
 # Normalize counts                                                             #
 ################################################################################
 
+#CHECK
 rule merge_blacklist_bins:
     input:
         norm = "utils/normalization/HGSVC.{bin_size}.txt"
     output:
         merged = "normalizations/HGSVC.{bin_size}.merged.tsv"
+    conda:
+        "tools.yml"
     log:
         "log/merge_blacklist_bins/{bin_size}.log"
     shell:
@@ -565,12 +577,15 @@ rule merge_blacklist_bins:
         utils/merge-blacklist.py --merge_distance 500000 {input.norm} > {output.merged} 2> {log}
         """
 
+#CHECK
 rule normalize_counts:
     input:
         counts = "counts/{sample}/{bin_size}_fixed.txt.gz",
         norm   = "normalizations/HGSVC.{bin_size}.merged.tsv",
     output:
         "counts/{sample}/{bin_size}_fixed_norm.txt.gz"
+    conda:
+        "r-tools.yml"
     log:
         "log/normalize_counts/{sample}/{bin_size}_fixed.log"
     shell:
@@ -578,6 +593,7 @@ rule normalize_counts:
         Rscript utils/normalize.R {input.counts} {input.norm} {output} 2>&1 > {log}
         """
 
+#CHECK
 rule link_normalized_info_file:
     input:
         info = "counts/{sample}/{bin_size}_fixed.info"
@@ -598,6 +614,8 @@ rule segmentation:
         "counts/{sample}/{bin_size}_{file_name}.txt.gz"
     output:
         "segmentation/{sample}/{bin_size,\d+}_{file_name}.txt"
+    conda:
+        "mosaicatcher.yml"
     log:
         "log/segmentation/{sample}/{bin_size}_{file_name}.log"
     params:
@@ -626,11 +644,14 @@ rule prepare_segments:
     script:
         "utils/helper.prepare_segments.R"
 
+#CHECK
 rule segment_one_cell:
     input:
         "counts-per-cell/{sample}/{cell}/{bin_size}_{file_name}.txt.gz"
     output:
         "segmentation-per-cell/{sample}/{cell}/{bin_size,\d+}_{file_name}.txt"
+    conda:
+        "mosaicatcher.yml"
     log:
         "log/segmentation-per-cell/{sample}/{cell}/{bin_size}_{file_name}.log"
     params:
@@ -646,6 +667,7 @@ rule segment_one_cell:
         {input} > {log} 2>&1
         """
 
+#CHECK
 rule segmentation_selection:
     input:
         counts="counts/{sample}/{bin_size}_{file_name}.txt.gz",
@@ -656,6 +678,8 @@ rule segmentation_selection:
         jointseg="segmentation2/{sample}/{bin_size,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.txt",
         singleseg="segmentation-singlecell/{sample}/{bin_size,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.txt",
         strand_states="strand_states/{sample}/{bin_size,[0-9]+}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}/intitial_strand_state",
+    conda:
+        "tools.yml"
     log:
         "log/segmentation_selection/{sample}/{bin_size}_{file_name}.selected_j{min_diff_jointseg}_s{min_diff_singleseg}.log"
     params:
@@ -690,6 +714,7 @@ rule plot_heatmap:
 # New SV classification based on a combination of Sascha's and Maryam's method #
 ################################################################################
 
+#CHECK
 rule mosaiClassifier_make_call:
     input:
         probs = 'haplotag/table/{sample}/haplotag-likelihoods.{bin_size}_fixed_norm.{bpdens}.Rdata'
@@ -697,8 +722,10 @@ rule mosaiClassifier_make_call:
         "sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/simpleCalls_llr{llr}_poppriors{pop_priors,(TRUE|FALSE)}_haplotags{use_haplotags,(TRUE|FALSE)}_gtcutoff{gtcutoff,[0-9\\.]+}_regfactor{regfactor,[0-9]+}.txt"
     params:
         minFrac_used_bins = 0.8,
-	manual_segs = config["manual_segments"],
-	use_priors = config["use_priors"]
+        manual_segs = config["manual_segments"],
+        use_priors = config["use_priors"]
+    conda:
+        "r-tools.yml"
     log:
         "log/mosaiClassifier_make_call/{sample}/{bin_size}_fixed_norm.{bpdens}.llr{llr}.poppriors{pop_priors}.haplotags{use_haplotags}.gtcutoff{gtcutoff}.regfactor{regfactor}.log"
     script:
@@ -716,6 +743,7 @@ rule max_likelihood_sv_call:
     script:
         "utils/maxLikelihoodSVcall.snakemake.R"
 
+#CHECK
 rule mosaiClassifier_calc_probs:
     input:
         counts = "counts/{sample}/{window_specs}.txt.gz",
@@ -724,6 +752,8 @@ rule mosaiClassifier_calc_probs:
         bp = "counts/{sample}/manual_segments_counts.txt" if config["manual_segments"] else "segmentation2/{sample}/{window_specs}.{bpdens}.txt"
     params:
         manual_segs = config["manual_segments"]
+    conda:
+        "r-tools.yml"
     output:
         output = "sv_probabilities/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/probabilities.Rdata"
     log:
@@ -835,12 +865,15 @@ elif config["manual_segments"]:
 
 # Strandphaser needs a different input format which contains the path names to
 # the bam files. This rule extracts this information and prepares an input file.
+#CHECK
 rule convert_strandphaser_input:
     input:
         states = "strand_states/{sample}/{window_specs}.{bpdens}/intitial_strand_state",
         info   = "counts/{sample}/500000_fixed.info"
     output:
         "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/strandphaser_input.txt"
+    conda:
+        "r-tools.yml"
     log:
         "log/convert_strandphaser_input/{sample}/{window_specs}.{bpdens}.log"
     script:
@@ -854,9 +887,10 @@ rule install_StrandPhaseR:
     shell:
         """
         echo sup
-		# TAR=$(which tar) Rscript utils/install_strandphaser.R > {log} 2>&1
+        # TAR=$(which tar) Rscript utils/install_strandphaser.R > {log} 2>&1
         """
 
+#CHECK
 rule prepare_strandphaser_config_per_chrom:
     input:
         "strand_states/{sample}/{window_specs}.{bpdens}/intitial_strand_state"
@@ -897,6 +931,7 @@ def locate_snv_vcf(wildcards):
         return "external_snv_calls/{}/{}.vcf".format(wildcards.sample, wildcards.chrom)
 
 if not config["simulation_mode"]:
+#CHECK
     rule run_strandphaser_per_chrom:
         input:
             wcregions    = "strand_states/{sample}/{window_specs}.{bpdens}/strandphaser_input.txt",
@@ -907,6 +942,8 @@ if not config["simulation_mode"]:
         output:
             "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
             "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf",
+        conda:
+            "r-tools.yml"
         log:
             "log/run_strandphaser_per_chrom/{sample}/{window_specs}.{bpdens}/{chrom}.log"
         shell:
@@ -921,22 +958,27 @@ if not config["simulation_mode"]:
                 > {log} 2>&1
             """
 
+#CHECK
 rule compress_vcf:
     input:
         vcf="{file}.vcf",
     output:
         vcf="{file}.vcf.gz",
+    conda:
+        "tools.yml"
     log:
         "log/compress_vcf/{file}.log"
     shell:
         "(cat {input.vcf} | bgzip > {output.vcf}) > {log} 2>&1"
 
-
+#CHECK
 rule index_vcf:
     input:
         vcf="{file}.vcf.gz",
     output:
         tbi="{file}.vcf.gz.tbi",
+    conda:
+        "tools.yml"
     shell:
         "bcftools index --tbi {input.vcf}"
 
@@ -946,13 +988,15 @@ rule merge_strandphaser_vcfs:
         tbis=expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz.tbi", chrom=config["chromosomes"]),
     output:
         vcf='phased-snvs/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.vcf.gz'
+    conda:
+        "tools.yml"
     log:
         "log/merge_strandphaser_vcfs/{sample}/{window_specs}.{bpdens}.log"
     shell:
         "(bcftools concat -a {input.vcfs} | bcftools view -o {output.vcf} -O z --genotype het --types snps - ) > {log} 2>&1"
 
 
-
+#CHECK
 rule combine_strandphaser_output:
     input:
         expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
@@ -965,10 +1009,10 @@ rule combine_strandphaser_output:
         """
         set +o pipefail
         cat {input} | head -n1 > {output};
-		tail -q -n+2 {input} >> {output};
+        tail -q -n+2 {input} >> {output};
         """
 
-
+#CHECK
 rule convert_strandphaser_output:
     input:
         phased_states  = "strand_states/{sample}/{window_specs}.{bpdens}/strandphaser_output.txt",
@@ -976,6 +1020,8 @@ rule convert_strandphaser_output:
         info           = "counts/{sample}/500000_fixed.info"
     output:
         "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/final.txt"
+    conda:
+        "r-tools.yml"
     log:
         "log/convert_strandphaser_output/{sample}/{window_specs}.{bpdens}.log"
     script:
@@ -986,7 +1032,9 @@ rule convert_strandphaser_output:
 # Haplotagging                                                                 #
 ################################################################################
 
+
 if not config["simulation_mode"]:
+    #CHECK
     rule haplotag_bams:
         input:
             vcf='phased-snvs/{sample}/{window_specs}.{bpdens}.vcf.gz',
@@ -996,11 +1044,14 @@ if not config["simulation_mode"]:
             ref = config["reference"],
         output:
             bam='haplotag/bam/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/{bam}.bam',
+        conda:
+            "tools.yml"
         log:
             "log/haplotag_bams/{sample}/{window_specs}.{bpdens}/{bam}.log"
         shell:
             "whatshap haplotag -o {output.bam} -r {input.ref} {input.vcf} {input.bam} > {log} 2>{log}"
 
+#CHECK
     rule create_haplotag_segment_bed:
         input:
             segments="segmentation2/{sample}/{size}{what}.{bpdens}.txt",
@@ -1009,6 +1060,7 @@ if not config["simulation_mode"]:
         shell:
             "awk 'BEGIN {{s={wildcards.size};OFS=\"\\t\"}} $2!=c {{prev=0}} NR>1 {{print $2,prev*s+1,($3+1)*s; prev=$3+1; c=$2}}' {input.segments} > {output.bed}"
 
+#CHECK
     rule create_haplotag_table:
         input:
             bam='haplotag/bam/{sample}/{window_specs}.{bpdens}/{cell}.bam',
@@ -1016,11 +1068,14 @@ if not config["simulation_mode"]:
             bed = "haplotag/bed/{sample}/{window_specs}.{bpdens}.bed"
         output:
             tsv='haplotag/table/{sample}/by-cell/haplotag-counts.{cell}.{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.tsv'
+        conda:
+            "r-tools.yml"
         log:
             "log/create_haplotag_table/{sample}.{cell}.{window_specs}.{bpdens}.log"
         script:
             "utils/haplotagTable.snakemake.R"
 
+#CHECK
 rule merge_haplotag_tables:
     input:
         tsvs=lambda wc: ['haplotag/table/{}/by-cell/haplotag-counts.{}.{}.{}.tsv'.format(wc.sample,cell,wc.window_specs,wc.bpdens) for cell in BAM_PER_SAMPLE[wc.sample]],
@@ -1030,11 +1085,14 @@ rule merge_haplotag_tables:
         '(head -n1 {input.tsvs[0]} && tail -q -n +2 {input.tsvs}) > {output.tsv}'
 
 
+#CHECK
 rule create_haplotag_likelihoods:
     input:
         haplotag_table='haplotag/table/{sample}/full/haplotag-counts.{window_specs}.{bpdens}.tsv',
         sv_probs_table = 'sv_probabilities/{sample}/{window_specs}.{bpdens}/probabilities.Rdata',
     output: 'haplotag/table/{sample}/haplotag-likelihoods.{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.Rdata'
+    conda:
+        "r-tools.yml"
     log:
         "log/create_haplotag_likelihoods/{sample}.{window_specs}.{bpdens}.log"
     script:
@@ -1046,11 +1104,14 @@ rule create_haplotag_likelihoods:
 ################################################################################
 
 if not config["simulation_mode"]:
+    #CHECK
     rule mergeBams:
         input:
             lambda wc: expand("bam/" + wc.sample + "/all/{bam}.bam", bam = ALLBAMS_PER_SAMPLE[wc.sample]) if wc.sample in ALLBAMS_PER_SAMPLE else "FOOBAR",
         output:
             "snv_calls/{sample}/merged.bam"
+        conda:
+            "tools.yml"
         log:
             "log/mergeBams/{sample}.log"
         threads:
@@ -1063,10 +1124,12 @@ rule index_bam:
         "{file}.bam"
     output:
         "{file}.bam.bai"
+    conda:
+        "tools.yml"
     log:
         "{file}.bam.log"
     shell:
-        config["samtools"] + " index {input} 2> {log}"
+        "samtools index {input} 2> {log}"
 
 rule call_SNVs_bcftools_chrom:
     input:
@@ -1086,6 +1149,7 @@ rule call_SNVs_bcftools_chrom:
         | {params.bcftools} call -mv - | {params.bcftools} view --genotype het --types snps - > {output} 2> {log}
         """
 
+#CHECK
 rule regenotype_SNVs:
     input:
         bam   = "snv_calls/{sample}/merged.bam",
@@ -1094,6 +1158,8 @@ rule regenotype_SNVs:
         sites = config["snv_sites_to_genotype"],
     output:
         vcf = "snv_genotyping/{sample}/{chrom,chr[0-9A-Z]+}.vcf"
+    conda:
+        "tools.yml"
     log:
         "log/snv_genotyping/{sample}/{chrom}.log"
     params:
