@@ -27,28 +27,24 @@ def parse_command_line():
     parser.add_argument("-b", "--input_bed", type=str, help="The bed file with segments",required=True)
     parser.add_argument("-n", "--norm_count_output",type=str, help="The output file with normalised watson and crick counts for downstream procesing", required=True)
     parser.add_argument("-p", "--norm_plot_output",type=str, help="The output file with normalised watson and crick counts for plots", required=True)
-    norm_group = parser.add_mutually_exclusive_group(required=True)
-    norm_group.add_argument(
-        '--bin-mapping-counts',
-        '-bmc',
-        help='Mapping counts in preprocessed form (numpy array). Fixed bin width and regular spacing required.',
-        dest='bin_map_counts',
+    parser.add_argument(
+        '--mapping-counts',
+        '-mc',
+        help='Raw mapping counts as fixed bin, regular spaced BED-like file. Will be automatically converted to HDF file for future use.',
+        dest='map_counts',
         type=str,
         default=''
     )
-    norm_group.add_argument(
-        '--raw-mapping-counts',
-        '-rmc',
-        help='Raw mapping counts as fixed bin, regular spaced BED file. Will be automatically converted to HDF file',
-        dest='raw_map_counts',
-        type=str,
-        default=''
-    )
+    # since the binary HDF file will be created in the background,
+    # and be used implicitly is present, parallelization can be
+    # dangerous if several processes (e.g., as executed in a Snakemake
+    # run) try to write to the same output HDF file during conversion
     parser.add_argument(
         '--chromosome',
         '-c',
         default='genome',
         type=str,
+        choices=['genome'],  # safeguard against accidental parallelization by chromosome
         help='Restrict counting to this chromosome. Default "genome" will process everything.'
     )
     parser.add_argument(
@@ -404,19 +400,19 @@ def counts(sample, input_bam, input_bed, norm_count_output, mapping_counts, norm
 
 
 
-def convert_mapping_counts(raw_counts, binary_counts, process_chrom):
+def convert_mapping_counts(raw_counts, process_chrom):
     """
     Convert textual BED-like raw mapping counts into
     binary representation stored as HDF for faster access.
     """
-    if os.path.isfile(binary_counts):
-        hdf_file = binary_counts
+    num_splits = 1
+    if any([raw_counts.endswith(x) for x in ['.gz', '.zip', '.bz2', '.xz']]):
+        num_splits = 2
+    basename = raw_counts.rsplit('.', num_splits)[0]
+    hdf_file = basename + '.h5'
+    if os.path.isfile(hdf_file):
+        return hdf_file
     else:
-        num_splits = 1
-        if any([raw_counts.endswith(x) for x in ['.gz', '.zip', '.bz2', '.xz']]):
-            num_splits = 2
-        basename = raw_counts.rsplit('.', num_splits)[0]
-        hdf_file = basename + '.h5'
         with pd.HDFStore(hdf_file, 'w') as hdf:
             pass
 
@@ -486,20 +482,16 @@ def main():
             args.input_bam,
             args.input_bed,
             args.norm_count_output,
-            args.raw_map_counts,
+            args.map_counts,
             args.norm_plot_output
         )
         return 1
 
-    if os.path.isfile(args.raw_map_counts):
-        map_counts_file = convert_mapping_counts(
-            args.raw_map_counts,
-            args.bin_map_counts,
-            args.chromosome
+    map_counts_file = convert_mapping_counts(
+        args.map_counts,
+        args.chromosome
         )
-    else:
-        map_counts_file = args.bin_map_counts
-
+    
     chroms_to_process = []
     if args.chromosome != 'genome':
         chroms_to_process = [args.chromosome]
