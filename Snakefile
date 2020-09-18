@@ -4,27 +4,27 @@ import random
 import os.path
 
 N = 3
-proportions = [(147,3), (142,8), (135,15), (120,30), (75,75), (30,120), (15,135), (8,142), (3,147)]
+proportions = [(50, 50)]
 targets = [
-	('WT', 'C7', count1, count2, i) for i in range(1,N+1) for count1,count2 in proportions
+	('HG01114', 'NA19036', count1, count2, i) for i in range(1,N+1) for count1,count2 in proportions
 ]
 
 sample_paths = {
-	'BM510': '/MMCI/TM/scratch/strandseq/input-data/RPE-BM510/selected/',
-	'C7':    '/MMCI/TM/scratch/strandseq/input-data/C7_data/selected/',
-	'WT':    '/MMCI/TM/scratch/strandseq/input-data/RPE1-WT/selected/',
+	'HG01114': '/scratch/bioinf/projects/scTRIP/bam/HG01114/selected/',
+	'NA19036': '/scratch/bioinf/projects/scTRIP/bam/NA19036/selected/'
 }
 
 samples = sorted(sample_paths.keys())
 sample_cells = defaultdict(list)
 
 for sample in samples:
-	sample_cells[sample] = list(glob_wildcards(sample_paths[sample] + '{cell}.sort.mdup.bam').cell)
+	sample_cells[sample] = list(glob_wildcards(sample_paths[sample] + '{cell}.bam').cell)
 
 SAMPLES = sorted(set(samples))
 
 CELL_PER_SAMPLE= defaultdict(list)
 BAM_PER_SAMPLE = defaultdict(list)
+ALLBAMS_PER_SAMPLE = defaultdict(list)
 
 bam_mapping = {}
 for target in targets:
@@ -34,8 +34,9 @@ for target in targets:
 	l = []
 	for sample, count in [(sample1,count1),(sample2,count2)]:
 		for cell in random.choices(sample_cells[sample], k=count):
-			source_bam = sample_paths[sample] + cell + '.sort.mdup.bam'
+			source_bam = sample_paths[sample] + cell + '.bam'
 			l.append((source_bam, cell))
+
 	random.shuffle(l)
 	for i, (source_bam, cell) in enumerate(l):
 		target_bam = 'bam/{0}/all/CELL{1:03d}.{2}.bam'.format(target_sample,i,cell)
@@ -111,44 +112,6 @@ localrules:
     prepare_segments,
     split_external_snv_calls,
     prepare_strandphaser_config_per_chrom
-
-rule all:
-    input:
-        expand("plots/{sample}/{window}_fixed.pdf",      sample = SAMPLES, window = [50000, 100000, 200000, 500000]),
-        expand("plots/{sample}/{window}_fixed_norm.pdf", sample = SAMPLES, window = [50000, 100000, 200000]),
-        expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_calls/{method}.{chrom}.pdf",
-               sample = SAMPLE,
-               chrom = config["chromosomes"],
-               window = [100000],
-               bpdens = BPDENS,
-               method = METHODS),
-        expand("ploidy/{sample}/ploidy.{chrom}.txt", sample = SAMPLES, chrom = config["chromosomes"]),
-        expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_consistency/{method}.consistency-barplot-{plottype}.pdf",
-               sample = SAMPLES,
-               window = [100000],
-               bpdens = BPDENS,
-               method = METHODS,
-               plottype = ["byaf","bypos"]),
-        expand("sv_calls/{sample}/{window}_fixed_norm.{bpdens}/plots/sv_clustering/{method}-{plottype}.pdf",
-               sample = SAMPLES,
-               window = [100000],
-               bpdens = BPDENS,
-               method = METHODS,
-               plottype = ["position","chromosome"]),
-        expand("halo/{sample}/{window}_{suffix}.json.gz",
-               sample = SAMPLES,
-               window = [100000],
-               suffix = ["fixed", "fixed_norm"]),
-        expand("stats-merged/{sample}/stats.tsv", sample = SAMPLES),
-        expand("postprocessing/merge/{sample}/{window}_fixed_norm.{bpdens}/{method}.txt",
-               sample = SAMPLES,
-               window = [100000],
-               bpdens = BPDENS,
-               method = list(set(m.replace('_filterTRUE','').replace('_filterFALSE','') for m in METHODS))),
-#        expand("cell-mixing-eval/{window}_fixed_norm.{bpdens}/{method}.tsv",
-#               window = [100000],
-#               bpdens = BPDENS,
-#               method = METHODS),
 
 
 rule master:
@@ -442,7 +405,7 @@ rule generate_exclude_file_1:
     output:
         temp("log/exclude_file.temp")
     input:
-        bam = expand("bam/{sample}/selected/{bam}.bam", sample = SAMPLES[0], bam = BAM_PER_SAMPLE[SAMPLES[0]][0])
+        bam = expand("bam/{sample}/selected/{bam}.bam", sample = target_sample, bam = BAM_PER_SAMPLE[target_sample][0])
     log:
         "log/generate_exclude_file_1.log"
     params:
