@@ -115,7 +115,13 @@ elif config["manual_segments"]:
                    bin_size = [100000],
                    bpdens = BPDENS,
                    method = METHODS),
-
+             expand("sv_probabilities/{sample}/{bin_size}_fixed_norm.{bpdens}/probabilities.Rdata",
+                     sample = SAMPLES,
+                     chrom = config["chromosomes"],
+                     bin_size = [100000],
+                     bpdens = BPDENS,
+                     method = METHODS),
+            
 
 else:
     rule all:
@@ -182,7 +188,7 @@ rule simulate_lineage_tree_and_svs:
     params:
         cell_count = config["simulation_cell_count"],
         subclonality = config["subclonality"],
-	min_subclonal_sv_size = config["min_subclonal_sv_size"]
+        min_subclonal_sv_size = config["min_subclonal_sv_size"]
     log:
         "log/simulate_lineage_tree/lineage_tree{seed}.log"
     script:
@@ -528,17 +534,20 @@ if not config["simulation_mode"]:
             > {log} 2>&1
             """
 
-if config["manual_segments"]:			
-	rule watson_crick_counts:
-        	input:
-                	bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
-                	bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",                bed = "manual_segmentation/{sample}.bed",
-			mapping= "mapping_counts_allchrs.txt"
-		output:
-			processing_counts="counts/{sample}/manual_segments_counts.txt",
-			plotting_counts="counts/{sample}/manual_segments_counts_for_plots.txt",
-		log:"log/{sample}/watson_crick_counts.log"
-		shell:"python3 utils/watson_crick_counts.py -s {wildcards.sample} -i {input.bam} -b {input.bed} -n {output.processing_counts} -p {output.plotting_counts} -mc {input.mapping}"
+if config["manual_segments"]:            
+    rule watson_crick_counts:
+            input:
+                bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+                bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
+                bed = "manual_segmentation/{sample}.bed",
+                mapping = "mapping_counts_allchrs.txt"
+            output:
+                processing_counts="counts/{sample}/manual_segments_counts.txt"
+                #plotting_counts="counts/{sample}/manual_segments_counts_for_plots.txt",
+            log:
+                "log/{sample}/watson_crick_counts.log",
+            shell:
+                "python3 utils/watson_crick_counts.py -s {wildcards.sample} -i {input.bam} -b {input.bed} -n {output.processing_counts} -p blub.txt -mc {input.mapping}"
 
 rule extract_single_cell_counts:
     input:
@@ -697,8 +706,8 @@ rule mosaiClassifier_make_call:
         "sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/simpleCalls_llr{llr}_poppriors{pop_priors,(TRUE|FALSE)}_haplotags{use_haplotags,(TRUE|FALSE)}_gtcutoff{gtcutoff,[0-9\\.]+}_regfactor{regfactor,[0-9]+}.txt"
     params:
         minFrac_used_bins = 0.8,
-	manual_segs = config["manual_segments"],
-	use_priors = config["use_priors"]
+        manual_segs = config["manual_segments"],
+        use_priors = config["use_priors"]
     log:
         "log/mosaiClassifier_make_call/{sample}/{bin_size}_fixed_norm.{bpdens}.llr{llr}.poppriors{pop_priors}.haplotags{use_haplotags}.gtcutoff{gtcutoff}.regfactor{regfactor}.log"
     script:
@@ -854,7 +863,7 @@ rule install_StrandPhaseR:
     shell:
         """
         echo sup
-		# TAR=$(which tar) Rscript utils/install_strandphaser.R > {log} 2>&1
+        # TAR=$(which tar) Rscript utils/install_strandphaser.R > {log} 2>&1
         """
 
 rule prepare_strandphaser_config_per_chrom:
@@ -927,7 +936,7 @@ rule compress_vcf:
     output:
         vcf="{file}.vcf.gz",
     log:
-        "log/compress_vcf/{file}.log"
+        "log/compress_vcf{file}.log"
     shell:
         "(cat {input.vcf} | bgzip > {output.vcf}) > {log} 2>&1"
 
@@ -965,7 +974,7 @@ rule combine_strandphaser_output:
         """
         set +o pipefail
         cat {input} | head -n1 > {output};
-		tail -q -n+2 {input} >> {output};
+        tail -q -n+2 {input} >> {output};
         """
 
 

@@ -4,6 +4,7 @@
 # Hufsah Ashraf (2020-08-03)
 #script for getting normalized watson and crick counts for each arbitrary segment
 import os
+import pdb
 import argparse
 import sys
 from pathlib import Path
@@ -59,9 +60,9 @@ def parse_command_line():
         '--min-mappability',
         '-mm',
         type=int,
-        default=90,
+        default=75,
         dest='min_mapp',
-        help='Minimum count of correctly mapped reads for a bin to be considered. Default: 90'
+        help='Minimum count of correctly mapped reads for a bin to be considered. Default: 75'
     )
 
 
@@ -115,10 +116,8 @@ def aggregate_segment_read_counts(process_args):
     segments = segments.loc[segments['chrom'] == chrom, :].copy()
     if segments.empty:
         return chrom, None
-
     segments_low_bound = (segments['start'].apply(determine_boundaries, args=(bin_size, 'low'))).tolist()
     segments_high_bound = (segments['end'].apply(determine_boundaries, args=(bin_size, 'high'))).tolist()
-
     segments = pd.concat(
         [segments,
         pd.DataFrame.from_records(segments_low_bound, columns=['start_boundary', 'start_bin'], index=segments.index),
@@ -138,14 +137,12 @@ def aggregate_segment_read_counts(process_args):
 
     segment_index = []
     segment_counts = []
-    
     # Iterate over each bam file
     for bam_file in glob_path:
         assert os.path.isfile(str(bam_file) + '.bai'), 'No BAM index file detected for {}'.format(bam_file)
         cell = os.path.basename(bam_file).rsplit('.', 1)[0]
-
+        
         with pysam.AlignmentFile(bam_file, mode='rb') as bam:
-
             for idx, row in segments.iterrows():
                 counts = pd.DataFrame(
                     np.zeros((4, row['end_bin'] - row['start_bin']), dtype=np.float64),
@@ -173,7 +170,6 @@ def aggregate_segment_read_counts(process_args):
 
                 # combine selection: only bins for which both of the above is true
                 select_bins = select_correct_threshold & select_low_incorrect
-
                 select_has_watson = np.array(counts.loc['watson', :] > 0, dtype=np.bool)
                 select_has_crick = np.array(counts.loc['crick', :] > 0, dtype=np.bool)
 
@@ -226,8 +222,8 @@ def aggregate_segment_read_counts(process_args):
             'end',
             'sample',
             'cell',
-            'Crick',
-            'Watson',
+            'C',
+            'W',
             'valid_bins',
             'length_norm_factor',
             'Crick_count_valid',
@@ -394,8 +390,8 @@ def counts(sample, input_bam, input_bed, norm_count_output, mapping_counts, norm
 
                 
                 norm_counts_file.write(str(chromosome)+ "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) +"\t" +str(norm_crick_counts)+ "\t" + str(norm_watson_counts)+ "\n")
-                #norm_plots_file.write(str(chromosome)+  "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) +"\t" +str(norm_crick_plots)+ "\t" + str(norm_watson_plots)+ "\n")
-                norm_plots_file.write(str(chromosome)+  "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) +"\t" +str(norm_crick_counts)+ "\t" + str(norm_watson_counts)+ "\n")
+                norm_plots_file.write(str(chromosome)+  "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) +"\t" +str(norm_crick_plots)+ "\t" + str(norm_watson_plots)+ "\n")
+                #norm_plots_file.write(str(chromosome)+  "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) +"\t" +str(norm_crick_counts)+ "\t" + str(norm_watson_counts)+ "\n")
                
 
 
@@ -498,7 +494,7 @@ def main():
     else:
         with pd.HDFStore(map_counts_file, 'r') as hdf:
             chroms_to_process = set([os.path.dirname(c).strip('/') for c in hdf.keys()])
-    
+    print('im happy with the hdf5. doing real work now') 
     param_list = [(c, args.sample, args.input_bed, args.input_bam, map_counts_file, args.bin_size, args.min_mapp) for c in chroms_to_process]
     merge_list = []
     with mp.Pool(min(len(chroms_to_process), args.jobs)) as pool:
@@ -511,9 +507,11 @@ def main():
 
     output = pd.concat(merge_list, axis=0, ignore_index=False)
     output.sort_values(['chrom', 'start', 'end', 'cell'], inplace=True)
-    reduced_output = ['chrom', 'start', 'end', 'sample', 'cell', 'Crick', 'Watson']
+    reduced_output = ['chrom', 'start', 'end', 'sample', 'cell', 'C', 'W']
 
     output[reduced_output].to_csv(args.norm_count_output, index=False, header=True, sep='\t')
+
+    output[reduced_output].to_csv(args.norm_plot_output, index=False, header=True, sep='\t')
 
     output.to_csv(args.norm_count_output + '.debug', index=False, header=True, sep='\t')
             

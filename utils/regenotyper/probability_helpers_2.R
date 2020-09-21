@@ -66,74 +66,74 @@ annotate_inv_with_callinfo <- function(invs, calls){
 
 
 
-# Load SV calls
-call_file = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/results_overlord_fixed_thrice/a/simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0_regfactor6.txt'
-calls_raw = read.table(call_file, sep='\t', header=1, stringsAsFactors = F)
-
-# Get consensus call for each segment
-calls = make_call_consensus(calls_raw)
-
-# Load inversion bedtable
-invs = load_and_annotate_bedtable()
-
-# Annotate each manual segment with the consensus SV call
-invs = annotate_inv_with_callinfo(invs, calls)
-
-invs$len = invs$end - invs$start
-invs$roundlen = round(log10(invs$len),1)
-
-# make a plot #
-library(ggplot2)
-theme_set(theme_classic())
-
-positions = c('HOM inv', 'HET inv', 'NO inv', 'Random segments')
-# Histogram on a Categorical variable
-g <- ggplot(invs, aes(gt)) +scale_fill_brewer(palette = "Spectral")
-
-g + geom_bar(aes(fill=sv_call_name), width = 0.5) + 
-  theme(axis.text.x = element_text()) + 
-  scale_x_discrete(limits = positions) +
-  labs(title="SV calls", 
-       subtitle="") +
-  xlab('HG00733 Inversion status')
-
-
-# length related for the positive ones
-# make a plot #
-
-invs_hom = invs[invs$gt == "HOM inv",]
-invs_het = invs[invs$gt == "HET inv",]
-invs_no = invs[invs$gt == "NO inv",]
-
-library(ggplot2)
-theme_set(theme_classic())
-
-#positions = c('HOM inv', 'HET inv', 'NO inv', 'Random segments')
-# Histogram on a Categorical variable
-g <- ggplot(invs_hom, aes(roundlen)) +scale_fill_brewer(palette = "Spectral")
-
-g + geom_bar(aes(fill=sv_call_name), alpha=0.5) + 
-  labs(title="HOM inversion re-genotyping", 
-       subtitle="") +
-  xlab('log10 segment length')
-
-#positions = c('HOM inv', 'HET inv', 'NO inv', 'Random segments')
-# Histogram on a Categorical variable
-g <- ggplot(invs_het, aes(roundlen)) +scale_fill_brewer(palette = "Accent")
-
-g + geom_bar(aes(fill=sv_call_name), alpha=0.5, width=0.08) + 
-  labs(title="HET inversion re-genotyping", 
-       subtitle="") +
-  xlab('log10 segment length')
-
-#positions = c('HOM inv', 'HET inv', 'NO inv', 'Random segments')
-# Histogram on a Categorical variable
-g <- ggplot(invs_no, aes(roundlen))# +scale_fill_brewer(palette = "Spectral")
-
-g + geom_bar(aes(fill=sv_call_name), alpha=0.5, width=0.08) + 
-  labs(title="HET inversion re-genotyping", 
-       subtitle="") +
-  xlab('log10 segment length')
-
+# # Load SV calls
+# call_file = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/results_overlord_fixed_thrice/a/simpleCalls_llr4_poppriorsTRUE_haplotagsTRUE_gtcutoff0_regfactor6.txt'
+# calls_raw = read.table(call_file, sep='\t', header=1, stringsAsFactors = F)
+# 
+# # Get consensus call for each segment
+# calls = make_call_consensus(calls_raw)
+# 
+# # Load inversion bedtable
+# invs = load_and_annotate_bedtable()
+# 
+# # Annotate each manual segment with the consensus SV call
+# invs = annotate_inv_with_callinfo(invs, calls)
+# 
+# invs$len = invs$end - invs$start
+# invs$roundlen = round(log10(invs$len),1)
+# 
+# # make a plot #
+# library(ggplot2)
+# theme_set(theme_classic())
+# 
+# positions = c('HOM inv', 'HET inv', 'NO inv', 'Random segments')
+# # Histogram on a Categorical variable
+# g <- ggplot(invs, aes(gt)) +scale_fill_brewer(palette = "Spectral")
+# 
+# g + geom_bar(aes(fill=sv_call_name), width = 0.5) + 
+#   theme(axis.text.x = element_text()) + 
+#   scale_x_discrete(limits = positions) +
+#   labs(title="SV calls", 
+#        subtitle="") +
+#   xlab('HG00733 Inversion status')
+# 
+# 
+# # length related for the positive ones
+# # make a plot #
+# 
+# invs_hom = invs[invs$gt == "HOM inv",]
+# invs_het = invs[invs$gt == "HET inv",]
+# invs_no = invs[invs$gt == "NO inv",]
+# 
+# library(ggplot2)
+# theme_set(theme_classic())
+# 
+# #positions = c('HOM inv', 'HET inv', 'NO inv', 'Random segments')
+# # Histogram on a Categorical variable
+# g <- ggplot(invs_hom, aes(roundlen)) +scale_fill_brewer(palette = "Spectral")
+# 
+# g + geom_bar(aes(fill=sv_call_name), alpha=0.5) + 
+#   labs(title="HOM inversion re-genotyping", 
+#        subtitle="") +
+#   xlab('log10 segment length')
+# 
+# #positions = c('HOM inv', 'HET inv', 'NO inv', 'Random segments')
+# # Histogram on a Categorical variable
+# g <- ggplot(invs_het, aes(roundlen)) +scale_fill_brewer(palette = "Accent")
+# 
+# g + geom_bar(aes(fill=sv_call_name), alpha=0.5, width=0.08) + 
+#   labs(title="HET inversion re-genotyping", 
+#        subtitle="") +
+#   xlab('log10 segment length')
+# 
+# #positions = c('HOM inv', 'HET inv', 'NO inv', 'Random segments')
+# # Histogram on a Categorical variable
+# g <- ggplot(invs_no, aes(roundlen))# +scale_fill_brewer(palette = "Spectral")
+# 
+# g + geom_bar(aes(fill=sv_call_name), alpha=0.5, width=0.08) + 
+#   labs(title="HET inversion re-genotyping", 
+#        subtitle="") +
+#   xlab('log10 segment length')
+# 
 
 
