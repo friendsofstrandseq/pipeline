@@ -1,0 +1,76 @@
+# Whoeps, 31st August 2020
+
+configfile: "Snake.config.json"
+
+SAMPLE = (glob_wildcards("input_invs/{sample}.bed"))
+S2 = tuple(i for i in SAMPLE[0])
+SAMPLES = (sorted(set(S2)))
+#SAMPLES=sorted(set(SAMPLE))
+
+rule all:
+    input:
+        expand("result/{sample}_CN.txt", sample = SAMPLES)
+
+
+rule make_allCN:
+    input:
+        survivors = "tmp/{sample}_survived_bins_sorted.bed",
+        invfile = 'input_invs/{sample}.bed',
+        cnbed =  'CN_beds/{sample}_CN.bed'
+    output:
+        out = 'result/{sample}_CN.txt'
+    shell:
+        """
+        Rscript extract_CN.R \
+        -b {input.cnbed} \
+        -q {input.survivors} \
+        -i {input.invfile} \
+        -o {output.out}\
+	-s {wildcards.sample}
+        """
+
+rule sort_survivors:
+    input:
+        survivors = "tmp/{sample}_survived_bins.bed"
+    output:
+        survivors_sorted = "tmp/{sample}_survived_bins_sorted.bed"
+    shell:
+        """
+        bedtools sort -i {input.survivors} > {output.survivors_sorted}
+        """
+
+rule make_survivors:
+     input:
+        inversions = 'input_invs/{sample}.bed'
+     output:
+        survivors = 'tmp/{sample}_survived_bins.bed'
+     params:
+        maptrack = config['maptrack']
+     shell:
+         """
+         python3 survived_bins_interval_specific.py \
+         -i {params.maptrack} \
+         -b {input.inversions}\
+         -o {output.survivors}
+         """
+rule preprocessing_bigBed_1:
+    input:
+        big_bed = 'bigBeds/{sample}_wssd.bb'
+    output:
+        bed_precut = 'beds_precut/{sample}.bed'
+    params:
+        bigbedtoBed_path = config['bigbedtobed_path']
+    shell:
+        """
+        {params.bigbedtoBed_path} {input.big_bed} {output.bed_precut}
+        """
+
+rule preprocessing_bigBed_2:
+    input:
+        bed_precut = 'beds_precut/{sample}.bed'
+    output:
+        CN_bed = 'CN_beds/{sample}_CN.bed'
+    shell:
+        """
+        awk "{{print \$1,\$2,\$3,\$4,\$10}}" {input.bed_precut} > {output.CN_bed}
+        """

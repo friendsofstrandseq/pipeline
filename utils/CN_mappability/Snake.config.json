@@ -1,0 +1,4 @@
+{
+    "maptrack" : "path to mappability track",
+    "bigbedtobed_path" : "path to bigbedtobed tool from UCSC"
+}
