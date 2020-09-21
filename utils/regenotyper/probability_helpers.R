@@ -56,6 +56,28 @@ make_condensed_sumlist <- function(hapslist, p_grouped){
   return(cps)
 }
 
+#' Return a tbl with median values for all haplotypes that were interested in. 
+#' 
+#' @param hapslist list of haplotypes (like c('0101','1010',...))
+#' @param p_grouped  It's a tibble of probabilities derived from probabilites.Rdata, grouped by 
+#' chrom, start, end
+
+#' @author Wolfram Hoeps
+#' @export
+make_condensed_sumlist_probs <- function(hapslist, p_grouped){
+  #haps_to_consider, pg_bulk_probs
+  counter = 1
+  for (element in hapslist){
+    if (counter == 1){
+      cps = get_med_hap(element, p_grouped, mode='prob')
+    } else {
+      cps = full_join(get_med_hap(element, p_grouped, mode='prob'),cps, by=c("chrom","start","end"))
+    }
+    counter = counter + 1
+  }
+  return(cps)
+}
+
 #' Search the grouped probabilites file for the entry of a certain haplotype (e.g. inv_h1) and
 #' return the median across all cells. 
 #' 
@@ -82,15 +104,24 @@ get_med_hap <- function(h_g_selection, pg, haplo_or_geno='haplotype', llr_limit=
       summarise(!!newcolname := mean(new_mediancol))
     median_sub_ps[[newcolname]][(median_sub_ps[[newcolname]]) > llr_limit] = llr_limit
     median_sub_ps[[newcolname]][(median_sub_ps[[newcolname]]) < -llr_limit/2] = -llr_limit/2
+    
   } else if (mode == 'sum'){
     newcolname = paste('sum_', h_g_selection, sep='')
     median_sub_ps = sub_ps %>% 
-      mutate(new_mediancol = sum(logllh)) %>%
+      mutate(new_mediancol = log(sum(exp(as.brob(logllh))))) %>%
       group_by(chrom, start, end) %>% 
-      summarise(!!newcolname := mean(new_mediancol))
+      summarise(!!newcolname := sum(new_mediancol))
     median_sub_ps[[newcolname]][(median_sub_ps[[newcolname]]) > llr_limit] = llr_limit
     median_sub_ps[[newcolname]][(median_sub_ps[[newcolname]]) < -llr_limit/2] = -llr_limit/2
-  }
+  } else if (mode == 'prob'){
+  newcolname = paste('sum_', h_g_selection, sep='')
+  median_sub_ps = sub_ps %>% 
+    mutate(new_mediancol = sum(realp)) %>%
+    group_by(chrom, start, end) %>% 
+    summarise(!!newcolname := mean(new_mediancol))
+  #median_sub_ps[[newcolname]][(median_sub_ps[[newcolname]]) > llr_limit] = llr_limit
+  #median_sub_ps[[newcolname]][(median_sub_ps[[newcolname]]) < -llr_limit/2] = -llr_limit/2
+}
   return(median_sub_ps)
 }
 
@@ -141,7 +172,7 @@ load_and_prep_pdf <- function(probs_file_f){
   pdf = data.frame(readRDS(probs_file_f))
   # Get LLR of each haplotype over reference
   # The implementation of this is not great, so be careful. 
-  refs = pdf[pdf$haplotype=='1010',]$nb_gt_ll
+  refs = pdf[pdf$haplotype=='1010',]$nb_hap_ll
   n_rep = dim(pdf)[1] / length(refs)
   pdf$nb_ref_ll = 0
   pdf$nb_ref_ll = rep(refs, each=n_rep) 
@@ -223,8 +254,10 @@ get_top_scoring_haplotypes <- function(invs_f, pgi_f, n, mode='sum'){
 #' @author Wolfram Hoeps
 #' @export
 get_top_scoring_haplotypes_standalone <- function(call_llhs_f, pgi_f, n, mode='sum'){
+
+
   call_llhs_f2 = data.frame(call_llhs_f)
-  relevant_inv = call_llhs_f2[call_llhs_f2$start == pgi_f$start[1],]
+  relevant_inv = call_llhs_f2[(call_llhs_f2$start == pgi_f$start[1]) & (call_llhs_f2$end == pgi_f$end[1]),]
   if (mode=='median'){
     rel_inv_rel_cols = relevant_inv %>% select(starts_with('median_'))
     names_decreasing_withjunk = colnames(sort(rel_inv_rel_cols,decreasing = T))
@@ -286,7 +319,13 @@ maxN2 <- function(x, N=2){
 }
 
 attach_max_sec_name_to_call_llhs <- function(segs_llhs_f){ 
+
   segs_llhs = data.frame(segs_llhs_f)
+  # if Hom or Het are tied for first place with something else, 
+  # then we want to prefer Hom or Het. 
+  segs_llhs$sum_0101 = segs_llhs$sum_0101# + 0.01
+  segs_llhs$sum_0110 = segs_llhs$sum_0110# + 0.01
+  segs_llhs$sum_0110 = segs_llhs$sum_0110# + 0.01
   segs_llhs[,'maxval'] = apply(segs_llhs %>% select(starts_with('sum_')), 1, maxN1)
   segs_llhs[,'secval'] = apply(segs_llhs %>% select(starts_with('sum_')), 1, maxN2)
   DF = (segs_llhs %>% select(starts_with('sum_')))
