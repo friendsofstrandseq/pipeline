@@ -2,12 +2,14 @@
 # -*- coding: utf-8 -*-
 
 # Hufsah 31.8.2020
-# script to give a list of bins that survived all the filtraion i.e. the ones
-# that would be used for normalization for each segment # changing it to
-# take a track with 5 columns chr, start, end, correctly_mapped_reads,
-# incorrctly_mapped_reads...this track is just filtered for mapq so further
-# filtration for incorrect/correct reads >0.1 bins needs to be done here.
-# Plus the usual rule to keep only the bins with mapping_reads >=75
+# script to give a list of bins that would survive all the filtraion steps
+# i.e. the ones that would be used for normalization of watson and crick reads
+# It take a mapping track with 5 columns chr, start, end, correctly_mapped_reads,
+# incorrectly_mapped_reads...
+# this track is just filtered for reads with mapq<10, so further
+# filtration for bins with incorrect/correct reads > 0.1 is done here.
+# Additionally, the rule to keep only the bins with correctly 
+# mapping_reads >=75 is also applied here.
 
 import argparse
 import sys
