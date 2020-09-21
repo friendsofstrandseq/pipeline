@@ -269,13 +269,6 @@ mosaiClassifierCalcProbs <- function(probs, maximumCN=4, haplotypeMode=F, alpha=
   # deviding the gt likelihoods of symmetric haplotypes by 2
   probs[haplotype %in% symmetric.haps, nb_gt_ll:=.(nb_gt_ll/2)]
 
-
-  # Clean up table:
-  probs[, `:=`(Wcn = NULL,
-               Ccn = NULL,
-               disp_w = NULL,
-               disp_c = NULL)]
-  return(probs)
 }
 
 
