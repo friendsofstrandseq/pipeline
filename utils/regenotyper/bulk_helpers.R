@@ -24,31 +24,27 @@ bulkify_pg <- function(haps, pg_f){
   # Here, count pseudobulk expected, W and C counts and make first step of disp_w and disp_c
   
   # pre pre
-  pg_f = pg_f %>% group_by(haplotype) %>% mutate(Ccn = convert_hap(class, haplotype)[1], Wcn = convert_hap(class, haplotype)[2] )
+  pg_f = pg
+  pg_f = pg_f %>% group_by(class, haplotype) %>% mutate(Ccn = convert_hap(class, haplotype)[1], Wcn = convert_hap(class, haplotype)[2] )
   
-  # We want to count WW+CC and WC+CW cells together. So there is some pre-preprocessing needed.
-  # pre_pre 1) counts
-  pg_f <- transform(pg_f, W = ifelse(class == 'WW', C, W), C = ifelse(class == 'WW', W, C))
-  pg_f <- transform(pg_f, W = ifelse(class == 'WC', C, W), C = ifelse(class == 'WC', W, C))
-  # pre_pre 2) copy numbers
-  pg_f <- transform(pg_f, Wcn = ifelse(class == 'WW', Ccn, Wcn), Ccn = ifelse(class == 'WW', Wcn, Ccn))
-  pg_f <- transform(pg_f, Wcn = ifelse(class == 'WC', Ccn, Wcn), Ccn = ifelse(class == 'WC', Wcn, Ccn))
-  # pre_pre 3) class names
-  pg_f$class[pg_f$class=='WW'] = 'CC'
-  pg_f$class[pg_f$class=='WC'] = 'CW'
+  pg_f = merge_classes(pg_f)
+
   
-  # add WCN and CCN
 
   
   bulk_pre_1 = pg_f %>% group_by(chrom, start, end, class, haplotype) %>% mutate(expectedbulk = sum(expected), Wbulk = sum(W), Cbulk = sum(C),
                                                                      disp_w_prealpha=make_disp_w_prealpha(Wcn, expectedbulk, nb_p),
                                                                      disp_c_prealpha=make_disp_c_prealpha(Ccn, expectedbulk, nb_p))
   # Based on the class, make second step of disp_w, disp_c (...this is with this alpha stuff)
-  bulk_pre_2 = bulk_pre_1 %>% mutate(disp_c_real = make_disp_c_real(Ccn, Wcn, disp_w_prealpha, disp_c_prealpha, expectedbulk, nb_p),
-                                     disp_w_real = make_disp_w_real(Ccn, Wcn, disp_w_prealpha, disp_c_prealpha, expectedbulk, nb_p))
+  bulk_pre_2 = bulk_pre_1 %>% group_by(chrom, start, end, class, haplotype, Wcn, Ccn) %>% 
+                                        mutate(disp_c_real = make_disp_c_real(Ccn, Wcn, disp_w_prealpha, disp_c_prealpha, expectedbulk, nb_p),
+                                       disp_w_real = make_disp_w_real(Ccn, Wcn, disp_w_prealpha, disp_c_prealpha, expectedbulk, nb_p))
+  
+  bulk_pre_2.5 = bulk_pre_2 %>% mutate(Wbulk = as.integer(round(Wbulk)),
+                                       Cbulk = as.integer(round(Cbulk)))
   
   # Use our disp_w and disp_c, along with out pseudobulk expectation and counts, to calculate new hap_ll. 
-  bulk_pre_3 = bulk_pre_2 %>% mutate(nb_hap_ll = recalc_nb_hap_ll(Wbulk, Cbulk, disp_c_real, disp_w_real, nb_p))
+  bulk_pre_3 = bulk_pre_2.5 %>% mutate(nb_hap_ll = recalc_nb_hap_ll(Wbulk, Cbulk, disp_c_real, disp_w_real, nb_p))
   
   # turn LLHs into probabilities, with fixed priors (1, 2 and 1/100, like in original mosaicatcher)
   bulk_pre_4 = bulk_pre_3 %>% mutate(nb_hap_prob = calc_prob(nb_hap_ll, haplotype),
@@ -68,7 +64,7 @@ bulkify_pg <- function(haps, pg_f){
   ### Process the nb_ref_llh ###
   # Here a lazyer/more ugly part: We need to divide nb_hap_ll by reference so wg get logllh [i.e. logllh sv/ref].
   pg_bulk$nb_ref_ll = 0
-  for (cclass in c('CW','CC')){
+  for (cclass in c('CW','CC','WC','WW')){
     refs = pg_bulk$nb_hap_ll[(pg_bulk$class==cclass) & (pg_bulk$haplotype=='1010')]
     n_rep = dim(pg_bulk[(pg_bulk$class==cclass),])[1] / length(refs)
     pg_bulk[(pg_bulk$class==cclass),]$nb_ref_ll = rep(refs, each=n_rep) 
@@ -97,7 +93,24 @@ bulkify_pg <- function(haps, pg_f){
 
 
 
+merge_classes <- function(pg_f2){
+  
+  # We want to count WW+CC and WC+CW cells together. So there is some pre-preprocessing needed.
+  # from https://stackoverflow.com/questions/7746567/how-to-swap-values-between-two-columns
+  # pre_pre 1) counts
+  pg_f2 <- transform(pg_f2, W = ifelse(class == 'WW', C, W), C = ifelse(class == 'WW', W, C))
+  pg_f2 <- transform(pg_f2, W = ifelse(class == 'WC', C, W), C = ifelse(class == 'WC', W, C))
+  
+  # pre_pre 2) copy numbers
+  pg_f2 <- transform(pg_f2, Wcn = ifelse(class == 'WW', Ccn, Wcn), Ccn = ifelse(class == 'WW', Wcn, Ccn))
+  pg_f2 <- transform(pg_f2, Wcn = ifelse(class == 'WC', Ccn, Wcn), Ccn = ifelse(class == 'WC', Wcn, Ccn))
 
+  # pre_pre 3) class names
+  pg_f2$class[pg_f2$class=='WW'] = 'CC'
+  pg_f2$class[pg_f2$class=='WC'] = 'CW'
+  
+  return(pg_f2)
+}
 
 recalc_nb_hap_ll <- function(Wbulk, Cbulk, disp_c_real, disp_w_real, nb_p){
 
@@ -141,7 +154,7 @@ make_disp_w_real <- function(Ccn, Wcn, disp_w_prealpha, disp_c_prealpha, expecte
   
   ### Wcn and Ccn are zero? ###
   if (Ccn==0 & Wcn==0){
-    disp_w = scalar * expected * nb_p / (1-nb_p) * alpha * 0.5
+    disp_w = scalar * expected * (nb_p / (1-nb_p)) * alpha * 0.5
   } else if (Ccn==0 & Wcn>0) {
     disp_w = disp_w_prealpha * (1-alpha)
   } else if (Ccn>0 & Wcn==0) {
@@ -156,10 +169,12 @@ make_disp_c_real <- function(Ccn, Wcn, disp_w_prealpha, disp_c_prealpha, expecte
   # Take second step of calculating disp_c
   # Again, see mosaicatcher/utils/mosaiClassifier/getDispParAndSegType.R and 
   # mosaicatcher/utils/mosaiClassifier/mosaiClassifier.R to understand. 
-  
+  # print(Ccn)
+  # print(Wcn)
+  # print("go")
   ### Wcn and Ccn are zero? ###
   if (Ccn==0 & Wcn==0){
-    disp_c = scalar * expected * nb_p / (1-nb_p) * alpha * 0.5
+    disp_c = scalar * expected * (nb_p / (1-nb_p)) * alpha * 0.5
   } else if (Ccn==0 & Wcn>0) {
     disp_c = disp_w_prealpha * (alpha)
   } else if (Ccn>0 & Wcn==0) {
@@ -190,10 +205,7 @@ make_disp_c_prealpha <- function(Ccn, expected, nb_p, alpha=0.05, scalar=1){
 
 
 convert_hap <- function(class, hap_f){
-  # UNUSED. At least as long as Wcn and Ccn are returned in probabilities.R. 
-  # If they are not, then this code will be needed again one day. The 
-  # implementation here is very ugly anyway :P 
-  # But it runs. 
+  # Ugly but it runs. 
   # 0=Crick
   # 1=Watson
   strands = strsplit(class,'')[[1]]

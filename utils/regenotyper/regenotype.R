@@ -70,10 +70,11 @@ print('This can take a few minutes.')
 #p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/U24_peter/sv_probabilities/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.5/probabilities.Rdata"
 #p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/sv_probabilities_U24_David_calls_hackathon/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata"
 #p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/hack_32/sv_probabilities/HG00733/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata"
-#p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/sept18_U32/sv_probabilities/HG00733/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata"
-
+#p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/sept18_U32/sv_probabilities/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata"
+#p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/sept22_U32/sv_probabilities/HG00733/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata"
 #p_link = "/home/hoeps/Desktop/probabilities.Rdata"
 #CN_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks2/Mapping_Normalization/CN_track_plots/result/nonred_inversions_n32_CN.txt"
+#CN_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/tracks_hufsah_21sept_second/result/00733_CN.txt"
 #outdir_raw = "./deleteme/"
 #labels_link = NULL
 #p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/hack_32/sv_probabilities/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata'
@@ -107,8 +108,8 @@ if (is.null(CN_link)){
   CN = NULL
 } else {
   print('Mapability/CN file provided. Reading and storing the information')
-  CN = read.table(CN_link, stringsAsFactors = FALSE, header=1);
-  colnames(CN) = c('chrom','start','end','INV', 'CN', 'mapability')
+  CN = read.table(CN_link, stringsAsFactors = F, header=1);
+  colnames(CN) = c('chrom','start','end','sample','INV', 'CN', 'mapability', 'n_mappable_bins')
 }
 
 
@@ -132,17 +133,31 @@ sname = substring(p_link,data.frame(str_locate(p_link, 'HG|NA|GM'))$start,data.f
 print('Loading probabilities table')
 probs_raw = load_and_prep_pdf(p_link)
 
-# if (!is.null(CN)){
-#   CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","CN","mapability")], as.character))
-#   CNmerge = as.tbl(CNmerge)
-#   CNmerge <- CNmerge %>%  mutate(start = as.numeric(start),
-#                                  end = as.numeric(end), 
-#                                  CN = as.numeric(CN), 
-#                                  mapability = as.numeric(as.character(mapability)))
-#   p2 <- full_join(probs_raw, CNmerge, by = c("chrom","start","end"))
-# } 
-# p3 = probs_raw %>% group_by('chrom','start','end') %>% mutate(mapability = CNmerge[CNmerge$start %in% start,]$mapability)
-# 
+if (!is.null(CN)){
+  CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","CN","mapability","n_mappable_bins")], as.character))
+  CNmerge = as.tbl(CNmerge)
+  CNmerge <- CNmerge %>%  mutate(chrom = as.character(chrom),
+                                 start = as.numeric(as.character(start)),
+                                 end = as.numeric(as.character(end)),
+                                 CN = as.numeric(as.character(CN)),
+                                 mapability = as.numeric(as.character(mapability)))
+  p2 <- full_join(probs_raw, CNmerge, by = c("chrom","start","end"))
+  
+  # TODO fix
+  if (length(p2[is.na(p2$CN),]$CN) > 0){
+  p2[is.na(p2$CN),]$CN = 0
+  }
+  if (length(p2[is.na(p2$mapability),]$mapability) > 0){
+  p2[is.na(p2$mapability),]$mapability = 0
+  }
+}
+probs_raw = p2[!is.na(p2$sample),]
+
+len_normalization = as.numeric(as.character(probs_raw$n_mappable_bins))/((probs_raw$end - probs_raw$start)/100.)
+probs_raw$expected = probs_raw$expected * len_normalization
+#probs_raw$W = probs_raw$W * len_normalization
+#probs_raw$C = probs_raw$C * len_normalization
+
 # 
 # aaa = (p2[1:10,])
 # probs_raw$expected = probs_raw$expected * 
@@ -168,7 +183,7 @@ if (is.null(labels)){
 #### THIS IS THE MAIN WORKHORSE ###
 ###################################
 
-#group = unique(probs_raw$group)[1] #for quick manual mode
+group = unique(probs_raw$group)[1] #for quick manual mode
 for (group in unique(probs_raw$group)){
   # Talk to human
   print(paste0('Running samples with group ', group))
@@ -232,6 +247,7 @@ for (group in unique(probs_raw$group)){
     if (!is.null(CN)){
       CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","CN","mapability")], as.character))
       tab <- left_join(t2, CNmerge, by = c("chrom","start","end"))
+      CN = read.table(CN_link, stringsAsFactors = F, header=1);
     } 
     
 
@@ -247,9 +263,10 @@ for (group in unique(probs_raw$group)){
 
   ###[II] SINGLE CELL ###
   
-  call_llhs = (make_condensed_sumlist(haps_to_consider, pg))# %>% mutate_all(funs(replace_na(.,-1000)))
   
   if (make_bell_sc){
+    call_llhs = (make_condensed_sumlist(haps_to_consider, pg))# %>% mutate_all(funs(replace_na(.,-1000)))
+    
     #### [II]a) make dumbbell plot ####
     
     
