@@ -1,0 +1,25 @@
+# Hufsah Ashraf
+
+
+Before running the Snakefile:
+Download bigBedToBed from http://hgdownload.cse.ucsc.edu/admin/exe/linux.x86_64.v369/bigBedToBed and give its path in config.json.
+
+You MAY need to do the following to make it executable:
+chmod +x ./filePath/bigBedToBed 
+
+
+All the Copy Number bigbed files should be in bigBeds/ with a name format {sample}_wssd.bb
+
+The file with inversion intervals should be in input_invs/ and named {sample}.bed (one file per sample)..
+If multiple inversion callsets are at hand, merge and sort them to make one {sample}.bed
+
+The mapping track path should also be given in config.json. 
+Todo: Put the finalised mapping track somewhere that is publically accessible.
+Note that it takes mapping track with 5 columns (space seperated) chr,start,end,correctly mapped reads, incorrectly mapped reads
+
+
+
+This pipeline generates average copy number and mapabilty for each arbitrary segment (in the input_invs/{sample}.bed). 
+The output files (result/{sample}_CN.txt) are required to run the regenotyer
+
+
