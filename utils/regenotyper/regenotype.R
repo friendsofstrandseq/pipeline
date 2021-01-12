@@ -9,6 +9,7 @@
 # Output: - table with classifications, respective CN and mapability
 #         - dumbbellplot
 #         - beeswarmplots
+setwd('/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/scripts/pipeline/utils/regenotyper')
 print('Initialising Regenotyper...')
 # supposed to suppress warnings, but not working
 oldw <- getOption("warn")
@@ -41,7 +42,7 @@ option_list = list(
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
 
-
+  
 
 # Ok lets go! Calm the minds of impatient humans first of all.
 print('Processing and summarizing information, making plots')
@@ -77,12 +78,19 @@ print('This can take a few minutes.')
 #CN_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/tracks_hufsah_21sept_second/result/00733_CN.txt"
 #outdir_raw = "./deleteme/"
 #labels_link = NULL
-#p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/hack_32/sv_probabilities/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata'
-
+#p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/illumina_2dec7/sv_probabilities/HWV7FAFXY_HG00864x02_19s004812-1-1/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata'
+#p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/review_david323/sv_probabilities/NA19239/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata'
+#p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/HG00733_oct12/probabilities.Rdata'
+#labels_link = '//home/hoeps/PhD/projects/huminvs/mosaicatcher/bed_factory/hgsvc1_large/merged_sorted_corrected.bed'
+#CN_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/tracks_hufsah_21sept_second/result/00733_CN.txt'
+#outdir_raw = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/review_david323/sv_probabilities/NA19239/res2'
+#debug_file = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/review_david323/msc.debug'
 p_link = opt$file
-labels_link = opt$bed
+labels_link = NULL#opt$bed
 outdir_raw = opt$outdir
-CN_link = opt$cn_map
+debug_file = opt$cn_map
+
+
 
 
 ### switch modules on/off
@@ -103,15 +111,15 @@ if (is.null(opt$file)){
 }
 
 #Read the CN_mapability file first
-if (is.null(CN_link)){
-  print('No mapability/copy number track specified. Skipping that part.')
-  CN = NULL
-} else {
-  print('Mapability/CN file provided. Reading and storing the information')
-  CN = read.table(CN_link, stringsAsFactors = F, header=1);
-  colnames(CN) = c('chrom','start','end','sample','INV', 'CN', 'mapability', 'n_mappable_bins')
-}
-
+# if (is.null(CN_link)){
+#   print('No mapability/copy number track specified. Skipping that part.')
+#   CN = NULL
+# } else {
+#   print('Mapability/CN file provided. Reading and storing the information')
+#   CN = read.table(CN_link, stringsAsFactors = F, header=1);
+#   colnames(CN) = c('chrom','start','end','sample','INV', 'CN', 'mapability', 'n_mappable_bins')
+# }
+CN = NULL
 
 # Tell the user if we go for bed mode or single mode. At the occasion, also load it.
 if (is.null(labels_link)){
@@ -127,20 +135,28 @@ if (is.null(labels_link)){
 
 # sample name could be interesting
 sname = substring(p_link,data.frame(str_locate(p_link, 'HG|NA|GM'))$start,data.frame(str_locate(p_link, 'HG|NA|GM'))$start+6)
-
+# Special case for HG002, which has a different number of characters annoyingly.
+if (grepl("HG002", p_link, fixed = TRUE)){
+  sname = 'HG002'
+}
 
 # load p to p_grouped
 print('Loading probabilities table')
 probs_raw = load_and_prep_pdf(p_link)
+print('Done loading')
+
+CN = read.table(debug_file, header=1, stringsAsFactors = F)
 
 if (!is.null(CN)){
-  CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","CN","mapability","n_mappable_bins")], as.character))
+  #CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","CN","mapability","n_mappable_bins")], as.character))
+  CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","valid_bins")], as.character))
+  
   CNmerge = as.tbl(CNmerge)
   CNmerge <- CNmerge %>%  mutate(chrom = as.character(chrom),
                                  start = as.numeric(as.character(start)),
-                                 end = as.numeric(as.character(end)),
-                                 CN = as.numeric(as.character(CN)),
-                                 mapability = as.numeric(as.character(mapability)))
+                                 end = as.numeric(as.character(end)))#,
+  #                               CN = as.numeric(as.character(CN)))#,
+                                 #mapability = as.numeric(as.character(mapability)))
   p2 <- full_join(probs_raw, CNmerge, by = c("chrom","start","end"))
   
   # TODO fix
@@ -153,10 +169,12 @@ if (!is.null(CN)){
 }
 probs_raw = p2[!is.na(p2$sample),]
 
-len_normalization = as.numeric(as.character(probs_raw$n_mappable_bins))/((probs_raw$end - probs_raw$start)/100.)
+len_normalization = as.numeric(as.character(probs_raw$valid_bins))/
+  ((probs_raw$end - probs_raw$start)/100.)
+#len_normalization[len_normalization==0] = 1
 probs_raw$expected = probs_raw$expected * len_normalization
-#probs_raw$W = probs_raw$W * len_normalization
-#probs_raw$C = probs_raw$C * len_normalization
+#probs_raw$W = probs_raw$W / len_normalization
+#probs_raw$C = probs_raw$C / len_normalization
 
 # 
 # aaa = (p2[1:10,])
@@ -182,12 +200,12 @@ if (is.null(labels)){
 ##### OKAAYYY HERE WE GOOOOO ######
 #### THIS IS THE MAIN WORKHORSE ###
 ###################################
-
-group = unique(probs_raw$group)[1] #for quick manual mode
+print(unique(probs_raw$group))
+#group = unique(probs_raw$group)[1] #for quick manual mode
 for (group in unique(probs_raw$group)){
   # Talk to human
   print(paste0('Running samples with group ', group))
-  
+
   # Make the outfolder (maybe not necessary?)
   outdir = gsub("\\.:", "_:", paste0(outdir_raw ,group,'/'))
   suppressMessages(dir.create(outdir))
@@ -240,17 +258,27 @@ for (group in unique(probs_raw$group)){
     tab = make_table_finaledition(call_llhs_bulk, group, sname)
     #write.table(tab, file=paste0('/home/hoeps/Desktop/', 'counts_bulk_labels.txt'), quote = F, row.names = F, col.names = T)
     #adding copy number and mapability information to the table
+    tab2 = left_join(tab, CN[,c('chrom','start','end','valid_bins')])
+    tab2[tab2$valid_bins==0,]$pred_hard = 'nomappability'
+    tab2[tab2$valid_bins==0,]$pred_soft = 'nomappability'
+    tab2[tab2$valid_bins==0,]$pred_nobias = 'nomappability'
+    tab2[tab2$valid_bins==0,]$second_hard = 'nomappability'
+    tab2[tab2$valid_bins==0,]$confidence_hard_over_second = 100
+    tab = tab2[ , !(names(tab2) %in% c('valid_bins'))]
+    #t2 = as.data.frame(lapply(tab, as.character))
+    
+    tab[tab$confidence_hard_over_second==0,]$pred_hard = '0|0'
     
     
-    t2 = as.data.frame(lapply(tab, as.character))
+    #if (!is.null(CN)){
+      #CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","CN","mapability")], as.character))
+    #  CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","valid_bins")], as.character))
+      
+    #  tab <- left_join(t2, CNmerge, by = c("chrom","start","end"))
+      #CN = read.table(CN_link, stringsAsFactors = F, header=1);
+    #} 
     
-    if (!is.null(CN)){
-      CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","CN","mapability")], as.character))
-      tab <- left_join(t2, CNmerge, by = c("chrom","start","end"))
-      CN = read.table(CN_link, stringsAsFactors = F, header=1);
-    } 
-    
-
+    tab$group = group
     write.table(tab, file=paste0(outdir, 'sv_calls_bulk.txt'), quote = F, row.names = F, col.names = T)
   }
   

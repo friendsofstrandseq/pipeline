@@ -435,6 +435,7 @@ save_beeswarms <- function(pg_f, call_llhs_f, outdir, testrun=F, compositemode=F
 #' @export
 make_table_finaledition <- function(call_llhs_f, group_f, sname_f){
   
+
   maxN2 <- function(x, N=2){
     len <- length(x)
     if(N>len){

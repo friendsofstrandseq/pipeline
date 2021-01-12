@@ -7,22 +7,24 @@ library(dplyr)
 #theme_set(theme_classic())
 
 #tab2 = tab
-tab=tab2
-tab$simple = 'complex'
-tab[tab$GT %in% c('0|0', '1|0', '0|1', '1|1'),]$simple = 'simple'
+tab=tabp
+tab=tab[!(tab$pred_hard=='./.'),]
+tab$simple = 'ccomplex'
+tab[tab$GT %in% c('0|0', '1|0', '0|1', '1|1'),]$simple = 'asimple'
 tab[tab$GT %in% c('noreads'),]$simple = 'zeroreads'
 tab[tab$GT %in% c('noreads'),]$simple = 'zeroreads'
 tab[endsWith(tab$GT, '_lowconf'),]$simple = 'complex_lowconf'
-tab[tab$GT %in% c('0|0_lowconf', '1|0_lowconf', '0|1_lowconf', '1|1_lowconf'),]$simple = 'simple_lowconf'
-
+tab[tab$GT %in% c('0|0_lowconf', '1|0_lowconf', '0|1_lowconf', '1|1_lowconf'),]$simple = 'bsimple_lowconf'
+tab$verdict = tab$simple
 # Histogram on a Continuous (Numeric) Variable
-g <- ggplot(tab, aes(verdict)) + scale_fill_brewer(palette = "Spectral")
+#tab$GT = tab$GTs
+g <- ggplot(tab, aes(verdict))# + scale_fill_brewer(palette = "Spectral")
 
-g + geom_histogram(aes(fill=simple), 
+g + geom_histogram(aes(fill=GT), 
                    col="black", 
                    size=.1,
                    stat='count') +   # change number of bins
-  labs(title="Genotype predictions for 255 inversions in 31 samples") 
+  labs(title="Genotype predictions for 323 inversions in many samples") 
 
 
 #### mendel ####
@@ -83,18 +85,19 @@ test_mendel <- function(ce, gt_parent1, gt_parent2, gt_child){
 
 #c2 = callmatrix
 callmatrix = c2
+callmatrix[callmatrix=='./.']='0|0'
 #callmatrix = c2[c2$verdict=='pass',]
 callmatrix$mendel1 = 'UNK'
 callmatrix$mendel2 = 'UNK'
 callmatrix$mendel3 = 'UNK'
-#callmatrix$mendel4 = 'UNK'
+callmatrix$mendel4 = 'UNK'
 
 for (row in 1:nrow(callmatrix)){
   #callmatrix[row,]$mendel = 
-    callmatrix[row,]$mendel1 = test_mendel(ce, callmatrix[row,]$NA19238, callmatrix[row,]$NA19239,callmatrix[row,]$NA19240 )
-    callmatrix[row,]$mendel2 = test_mendel(ce, callmatrix[row,]$HG00512, callmatrix[row,]$HG00513,callmatrix[row,]$HG00514 )
-    callmatrix[row,]$mendel3 = test_mendel(ce, callmatrix[row,]$HG00731, callmatrix[row,]$HG00732,callmatrix[row,]$HG00733 )
-    callmatrix[row,]$mendel4 = test_mendel(ce, callmatrix[row,]$GM19650, callmatrix[row,]$HG00864,callmatrix[row,]$HG03371 )
+    callmatrix[row,]$mendel1 = as.logical(test_mendel(ce, callmatrix[row,]$NA19238, callmatrix[row,]$NA19239,callmatrix[row,]$NA19240 ))
+    callmatrix[row,]$mendel2 = as.logical(test_mendel(ce, callmatrix[row,]$HG00512, callmatrix[row,]$HG00513,callmatrix[row,]$HG00514 ))
+    callmatrix[row,]$mendel3 = as.logical(test_mendel(ce, callmatrix[row,]$HG00731, callmatrix[row,]$HG00732,callmatrix[row,]$HG00733 ))
+    callmatrix[row,]$mendel4 = as.logical(test_mendel(ce, callmatrix[row,]$GM19650, callmatrix[row,]$HG00864,callmatrix[row,]$HG03371 ))
     
 }
 ctest = callmatrix
@@ -103,21 +106,23 @@ ct3 = ctest[,c('HG00731','HG00732','HG00733','HG00512','HG00513','HG00514','NA19
 
 acceptable =  c('0|0', '1|0', '0|1', '1|1',  '0|0_lowconf', '1|0_lowconf', '0|1_lowconf', '1|1_lowconf')
 ct4 = ct3[ct3 %in% acceptable,]
-ct3 = ct2[]
+#ct3 = ct2[]
 
 #callmatrix[callmatrix$mendel]
-callmatrix$mendelall = callmatrix$mendel1 && callmatrix$mendel2 && callmatrix$mendel3
+#callmatrix$mendelall = callmatrix$mendel1 && callmatrix$mendel2 && callmatrix$mendel3
 
 # 'FALSE' %in% callmatrix[,c('mendel1','mendel2','mendel3')]
 # 
-mendelall = callmatrix %>% mutate(mm = 'FALSE' %in% c(mendel1, mendel2, mendel3))
+mendelall = callmatrix %>% mutate(mm = as.logical(mendel1) * as.logical(mendel2) * as.logical(mendel3))
+#mendelall = callmatrix %>% mutate(mm = as.numeric(mendel1) + 1)
+
 # test_mendel(ce, p1, p2, c)
 # # First trio
 
 # Histogram on a Continuous (Numeric) Variable
-g <- ggplot(mendelall, aes(verdict)) + scale_fill_brewer(palette = "Spectral")
+g <- ggplot(mendelall, aes()) + scale_fill_brewer(palette = "Spectral")
 
-g + geom_histogram(aes(fill=mm), 
+g + geom_histogram(aes(fill=as.logical(mm), x=mm), 
                    col="black", 
                    size=.1,
                    stat='count') +   # change number of bins
@@ -126,7 +131,7 @@ g + geom_histogram(aes(fill=mm),
 ctest = callmatrix[,c('HG00512','HG00513','HG00514','HG00731','HG00732','HG00733','NA19238','NA19239','NA19240','mendel1','mendel2','mendel3')]
 #### compare to david's calls
 
-david_list = '~/Desktop/desktop_5th_oct/nonred_inversions_n32_genotypes.csv'
+david_list = '~/PhD/projects/huminvs/mosaicatcher/bed_factory/revision/david_n35_323/nonred_inversions_n35_genotypes.csv'
 dgt = read.table(david_list, header=T, sep=',')
 
 #sth else
@@ -238,16 +243,26 @@ ggplot(data=cm) + geom_histogram(aes(x=af))
 ######################################################3
 #figure1
 tab3 = tab#[tab$verdict == 'pass',]
+companion_unique_samples = c('HG00514','HG00733','NA19240','HG02018','HG01573','GM19036')
+# filter, filter
+tab3a = left_join(tab3, cm[,c('chrom','start','end','simpleverdict')])
+tab3b = tab3a[tab3a$simpleverdict %in% c('PASS','lowmap', 'AlwaysComplex'),]
+tab3c = tab3b[!(tab3b$sample %in% companion_unique_samples),]
+tab3 = tab3c
 
-tab3$simpler = 'complex'
-tab3[tab3$GT %in% c('1|1', '1|1_lowconf'),]$simpler = 'HOM'
-tab3[tab3$GT %in% c('1|0', '1|0_lowconf','0|1', '0|1_lowconf'),]$simpler = 'HET'
+#tab3$GT = tab3$GTs
+tab3$simpler = 'ccomplex'
+tab3[tab3$GT %in% c('1|1', '1|1_lowconf'),]$simpler = 'aHOM'
+tab3[tab3$GT %in% c('1|0', '1|0_lowconf','0|1', '0|1_lowconf'),]$simpler = 'bHET'
 tab3[tab3$GT %in% c('0|0', '0|0_lowconf'),]$simpler = 'REF'
 tab3[tab3$GT %in% c('noreads'),]$simpler = 'zeroreads'
+tab3[tab3$ID %in% cm_detail_hom$ID,]$simpler = 'allMISO'
+#tab3[(tab3$ID %in% cm_detail_hom$ID) & (tab3$sample == 'GM20509'),]$simpler = 'aaMISO'
+
 #tab[endsWith(tab$GT, '_lowconf'),]$simpler = 'complex_lowconf'
 #tab[tab$GT %in% c('0|0_lowconf', '1|0_lowconf', '0|1_lowconf', '1|1_lowconf'),]$simpler = 'simple_lowconf'
-
-
+tab3 = tab3[tab3$simpler %in% c('aHOM','bHET','ccomplex', 'aaMISO','zeroreads'),]
+#tab3[tab3$simpler %in%  c('aHOM','bHET','ccomplex'),]$simpler = 'Hom/Het/Complex'
 data = as.data.frame.matrix(table(tab3$sample, tab3$simpler))
 dat = melt(as.matrix(data))
 library(ggbeeswarm)
@@ -256,8 +271,36 @@ g <- ggplot(data=dat, aes(x=X2, y=value)) +  geom_boxplot(aes(color=X2)) +
   geom_beeswarm(data=dat,
                 size=2,
                 cex=1.5) + 
-  ylim(c(0,200)) 
+  ylim(c(1,200)) + labs(x='Event class', y='Events per genome') +
+  theme(axis.text.x = element_text(face="bold", 
+                                   size=14),
+        axis.text.y = element_text(face="bold",
+                                   size=14))
   
+g
+
+# inverted sequence per genome.
+t4 = tab3 %>% group_by(sample,simpler) %>% mutate(nbases = sum(len)) %>% filter(row_number() == 1) 
+
+t5 = t4[,c('sample','simpler','nbases')]
+t6 = t5[t5$simpler %in% c('aHOM','bHET'),]
+t6[t6$simpler == 'aHOM',]$nbases = 2 * t6[t6$simpler == 'aHOM',]$nbases
+t7 = t6 %>% group_by(sample) %>% mutate(value = sum(nbases)) %>% filter(row_number() == 1) 
+t7$x = 'sample'
+t7 = as.data.frame(t7)
+data = as.data.frame.matrix(table(t7$x, t7$value))
+dat = melt(as.matrix(data))
+t7$value = t7$value/1000 
+g <- ggplot(data=t7, aes(x=x, y=value)) + 
+  geom_boxplot(aes(color=x)) +
+  geom_point(aes(x=x,y=value)) + 
+  ylim(c(1,40)) +
+  labs(x='', y='Inverted bases per diploid genome [Mb]') +
+  theme(axis.text.x = element_text(face="bold", 
+                                   size=14),
+        axis.text.y = element_text(face="bold",
+                                   size=14))
+
 g
 
 

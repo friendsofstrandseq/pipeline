@@ -22,9 +22,16 @@ bulkify_pg <- function(haps, pg_f){
   
   # We want to keep the stuff separated by start (i.e. segment), class (i.e. WW,WC,..) and haplytype (i.e. 1010, 1001, ...)
   # Here, count pseudobulk expected, W and C counts and make first step of disp_w and disp_c
-  
+  pg2 = pg[ , !(names(pg) %in% c('logllh'))]
   # pre pre
-  pg_f = pg
+  pg_f = na.omit(pg2)
+  # Sometimes this omits only some haplotypes, while others survive. So let's say if one of the 70haps has na, we remove the whole inversion from the analysis.
+  n = as.data.frame(rbind(table(pg_f$start)))
+  bad_starts = colnames((n[as.numeric(n) %% 70 != 0]))
+  pg_f = pg_f[!(pg_f$start %in% bad_starts),]
+  
+  
+  
   pg_f = pg_f %>% group_by(class, haplotype) %>% mutate(Ccn = convert_hap(class, haplotype)[1], Wcn = convert_hap(class, haplotype)[2] )
   
   pg_f = merge_classes(pg_f)
