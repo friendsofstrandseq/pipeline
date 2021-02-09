@@ -4,8 +4,8 @@ import glob, pdb
 import re
 
 # Collect foldernames with results
-dirs_pre = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/sept18_U32/sv_probabilities/*'
-c_dir = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks2/Mapping_Normalization/CN_track_plots/result/nonred_inversions_n32_CN.txt'
+dirs_pre = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/sept22_U32/sv_probabilities/*'
+c_dir = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/tracks_hufsah_21sept_second/result/00171_CN.txt'
 dirs = glob.glob(dirs_pre)
 # Make a regex object that will search for HG, GM or NA - the typical starts of samplenames.
 regex = re.compile(r'HG|GM|NA')
@@ -22,9 +22,10 @@ for dir in dirs:
         print(samplename)
         #bedpath = glob.glob('/home/hoeps/PhD/projects/huminvs/mosaicatcher/bed_factory/audano_3/wgot/done_withnames/newnames/{}*'.format(samplename))[0]
         try:
-            c_dir = glob.glob('/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/CN_map_U24/{}*'.format(samplename[2:]))[0]
+            c_dir = glob.glob('/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/tracks_hufsah_21sept_second/result/{}*'.format(samplename[2:]))[0]
         except:
-            c_dir = glob.glob('/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/CN_map_U24/{}*'.format('00733'))[0]
+            print('Missing CN annotation: {}'.format(samplename))
+            c_dir = glob.glob('/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/tracks_hufsah_21sept_second/result/{}*'.format('00733'))[0]
         if not os.path.exists(c_dir):
             print('missing dir: ', c_dir)
         #else:
