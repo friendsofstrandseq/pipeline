@@ -4,7 +4,6 @@ library(ggbeeswarm)
 library(reshape2)
 library(dplyr)
 library(plotly)
-library(umap)
 
 # TODO NEEDS DESCRIPTION
 ggplotColours <- function(n = 6, h = c(0, 360) + 15){

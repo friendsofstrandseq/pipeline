@@ -1,0 +1,318 @@
+# Whoeps, 9th Feb 2021
+# This snakemake is intended to run the regenotyper part fully automatic.
+
+# Load libraries
+import csv
+
+# Bind config
+configfile: "./Snake.config.json"
+
+# define commands
+rscript_command = 'Rscript'
+# PLINK v1.90b6.18 64-bit (16 Jun 2020)
+plink_command = '/g/korbel/hoeps/anaconda3/envs/limix/bin/plink'
+
+# parameters
+TESTMODE = False
+PHASE = True
+MODE = 'bulk'
+j = '0.1'
+s = '0.1'
+path_to_pipe = "/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline"
+
+
+SAMPLES = glob_wildcards("../../sv_probabilities/{sample}/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata")
+SAMPLES = list(SAMPLES)[0]#[0:2]
+
+#### Phasing related. ####
+STRANDSTATES_DIR = "../../strand_states/"
+names_sseq_to_pav = "input_naming/naming_sseq_to_rna"
+samples_pav = "input_naming/samples_pav.txt"
+samples_pg = "input_naming/samples_pg.txt"
+names_sseq_to_sseq_short = "input_naming/samplenames_sseq_to_sseq_short.txt"
+
+#For which files should we look into the freeze pav?
+pavsamplesfile = open(samples_pav, 'r')
+PAV_VCF_SAMPLES = pavsamplesfile.read().splitlines()
+# Otherwise, which files are in the pangenie vcf? [state of 9th Feb 2021: none]
+pgsamplesfile = open(samples_pg, 'r')
+PG_VCF_SAMPLES = pgsamplesfile.read().splitlines()
+
+
+if TESTMODE:
+    #SAMPLES = sorted(set(['H2NCTAFX2_GM20509B_20s000579-1-1']))
+    CHR = sorted(set(['chr3', 'chrX']))
+else:
+    SAMPLES_2, CHR, DUMMY = glob_wildcards(STRANDSTATES_DIR + \
+    "{sample}/100000_fixed_norm.selected_j0.1_s0.1/StrandPhaseR_analysis.{chr}/VCFfiles/{dummy}_phased.vcf")
+# KEEP THIS IN MIND! IGNORED SAMPLES!!!
+SAMPLES_TO_IGNORE = ['HVN3GAFXY_HG02018x01_19s004140-1-1','HTV2WAFXY_HG01573x02_19s003956-1-1','HVWVWAFXY_GM19036Bx02_19s004318-1-1']
+SAMPLES_withignore = [x for x in SAMPLES if x not in SAMPLES_TO_IGNORE]
+
+# Make a dict to go from weird sseq names (jdflkdsjf_HG00096x2_sadsa) to pav ones (HG00096)
+names_sseq_to_pavfile = csv.DictReader(open(names_sseq_to_pav))
+SAMPLEDICT={}
+for row in names_sseq_to_pavfile:
+    SAMPLEDICT[row['sseq']] = row['pav']
+
+SAMPLES=sorted(set(SAMPLES))
+CHRS = sorted(set(CHR))
+
+print('Samples')
+print(SAMPLES)
+
+
+
+### now our targets ###
+# Run 1
+per_sample_outputtxt = expand("{path}/regenotyper_samplewise_{mode}/{sample}/all/sv_calls_bulk.txt",
+    path=path_to_pipe, mode=MODE, sample=SAMPLES)
+merged_outputtxt_unphased = expand("{path}/regenotyper_allsamples_{mode}/all_sv_calls_unphased.txt", 
+    path=path_to_pipe, mode=MODE)
+
+# Run 2: phasing
+similarities_phasing = expand('isec_output/{sample}/{chr}/isec_output/similarity.txt', sample=SAMPLES_withignore, chr=CHRS)
+qc_plots_phasing = expand('res/gt_concordance_plots/{sample}_{chr}.pdf', sample=SAMPLES_withignore, chr=CHRS)
+merged_outputtxt_phased = expand("{path}/regenotyper_allsamples_{mode}/all_sv_calls_phased.txt", mode=MODE, path=path_to_pipe)
+
+# Run 3: creating vcfs
+sample_vcf = expand("{path}/regenotyper_allsamples_{mode}/arbigent_results/res_all.vcf", path=path_to_pipe, mode=MODE)
+
+####
+print('Ok, starting now. This print statement will be more informative in the future.')
+
+
+####
+rule all:
+    input:
+        per_sample_outputtxt,
+        merged_outputtxt_unphased,
+        similarities_phasing,
+        qc_plots_phasing,
+        merged_outputtxt_phased,
+        sample_vcf
+
+
+# Rule definitions
+
+################ RULES FOR PART 3:
+############### from Phased inversions to vcfs, QCs and filtered lists
+
+rule make_output_vcfs:
+    '''
+    Take the phased sv tables, and turn them into a series of viable vcfs.
+    The expand({path}) part seems a bit unnecessary, I'm sure this can be done cleaner. 
+    If there is time I will revisit. But anyway it works now. 
+    '''
+    input:
+        alltxt = expand("{path}/regenotyper_allsamples_{{mode}}/all_sv_calls_phased.txt", path=path_to_pipe),
+        msc = expand("{path}/regenotyper_samplewise_{{mode}}/msc.debug", path=path_to_pipe)
+    output:
+        vcf1 = expand("{path}/regenotyper_allsamples_{{mode}}/arbigent_results/res_all.vcf", path=path_to_pipe)
+    params:
+        outdir = expand("{path}/regenotyper_allsamples_{{mode}}/arbigent_results", path=path_to_pipe)
+    shell:
+        """
+        {rscript_command} table_to_vcfs.R \
+                                -a {input.alltxt} \
+                                -m {input.msc} \
+                                -o {params.outdir}
+        """
+
+################ RULES FOR PART 2:
+############### Inversion phasing
+
+rule make_qc_concordance_plots:
+    input:
+        'isec_output/{sample}/{chr}/isec_output/both.vcf'
+    output:
+        'res/gt_concordance_plots/{sample}_{chr}.pdf'
+    shell:
+        """
+        Rscript scripts_phasing/gt_concordance_pics.R \
+            -f {input} \
+            -s {wildcards.sample} \
+            -c {wildcards.chr} \
+            -o {output}
+        """
+
+### This is the rule that does the phasing. 
+# If no phasing should be performed (PHASE=False), then we
+# just copy over the unphased file. 
+if PHASE:
+    rule rephase_all_txt:
+        '''
+        Here, the magic happens. PhayzR takes the similiaritymerge files
+        and rephases all.txt
+        TO CHECK: Does all.txt contain all entries from before? We dont want any loss.
+        '''
+        input:
+            all_txt = "{path_to_pipe}/regenotyper_allsamples_{mode}/all_sv_calls_unphased.txt",
+            phaser = 'res/similaritymerge.txt'
+        output:
+            all_txt_rephased = "{path_to_pipe}/regenotyper_allsamples_{mode}/all_sv_calls_phased.txt",
+        params:
+            outdir = 'res/',
+            sseq_to_sseq_short = names_sseq_to_sseq_short,
+            blacklist_ = config["blacklist"]
+        shell:
+            """
+            Rscript scripts_phasing/phayzR.R -f {input.all_txt} \
+                                    -b {input.phaser} \
+                                    -x {params.blacklist_} \
+                                    -s {params.sseq_to_sseq_short} \
+                                    -o {params.outdir}
+            cp {params.outdir}/all_rephased.txt {output.all_txt_rephased}
+            """
+else:
+    rule rephase_all_txt:
+        '''
+        If no phasing should be perfomed, we just copy over the old file.
+        '''
+        input:
+            all_txt = expand("{path}regenotyper_allsamples_{{mode}}/all_sv_calls_unphased.txt", path=path_to_pipe)
+        output:
+            all_txt_rephased = expand("{path}regenotyper_allsamples_{{mode}}/all_sv_calls_unphased.txt", path=path_to_pipe)
+        shell:
+            """
+            cp {input.all_txt} > {output.all_txt_rephased}
+            """
+
+
+rule run_plink:
+    input:
+        bothvcf = 'isec_output/{sample}/{chr}/isec_output/both.vcf'
+    output:
+        similarity = 'isec_output/{sample}/{chr}/isec_output/similarity.txt'
+    shell:
+        """
+        bash scripts_phasing/similarity-matrix-wrapper.sh \
+            -c on \
+            -f {input} \
+            -o {output} \
+        """
+
+rule combine_vcfs:
+    input:
+        isec_0002_gz = 'isec_output/{sample}/{chr}/isec_output/0002.vcf.gz',
+        isec_0003_gz = 'isec_output/{sample}/{chr}/isec_output/0003.vcf.gz',
+    output:
+        bothvcf = 'isec_output/{sample}/{chr}/isec_output/both.vcf'
+    shell:
+        """
+        bcftools merge {input.isec_0002_gz} {input.isec_0003_gz} --force-samples > {output}_pre.vcf
+        grep -v -E '0\|0|1\|1|0\/1|1\/1|0\/0|0\/.|.\/0|1\/.|.\/1' {output}_pre.vcf > {output}
+        """
+
+rule run_isec:
+    input:
+        strandphaser_vcf_gz = 'strandphased_vcfs/{sample}/{chr}/vcf.vcf.gz',
+        pav_vcf_gz = 'pav_vcfs/{sample}/vcf.vcf.gz'
+    output:
+        isec_0002_gz = 'isec_output/{sample}/{chr}/isec_output/0002.vcf.gz',
+        isec_0003_gz = 'isec_output/{sample}/{chr}/isec_output/0003.vcf.gz'
+    shell:
+        """
+        bcftools isec -p isec_output/{wildcards.sample}/{wildcards.chr}/isec_output -Oz {input.strandphaser_vcf_gz} {input.pav_vcf_gz}
+        """
+
+rule get_strandphaser_vcf_gz:
+    input:
+        orig_vcf = STRANDSTATES_DIR+'{sample}/100000_fixed_norm.selected_j0.1_s0.1/StrandPhaseR_analysis.{chr}/VCFfiles/{chr}_phased.vcf'
+    output:
+        vcf = 'strandphased_vcfs/{sample}/{chr}/vcf.vcf',
+        vcf_gz = 'strandphased_vcfs/{sample}/{chr}/vcf.vcf.gz',
+        vcf_gz_tbi = 'strandphased_vcfs/{sample}/{chr}/vcf.vcf.gz.tbi'
+    shell:
+        """
+        cp {input.orig_vcf} {output.vcf}
+        bgzip -c {output.vcf} > {output.vcf_gz}
+        tabix -p vcf {output.vcf_gz}
+        """
+
+rule get_pav_vcf_gz:
+    input:
+        pg_vcf_gz = '/scratch/hoeps/genotypes/jana/pangenie_merged_bi_all.vcf.gz',
+        pav_freeze_vcf = '/scratch/hoeps/genotypes/freeze4/variants_freeze4_snv_snv_alt.vcf.gz',
+    output:
+        vcf_gz = 'pav_vcfs/{sample}/vcf.vcf.gz',
+        vcf_gz_tbi = 'pav_vcfs/{sample}/vcf.vcf.gz.tbi'
+    params:
+        vcfsample_name = lambda w: SAMPLEDICT['{}'.format(w.sample)],
+    run:
+        if params.vcfsample_name in PAV_VCF_SAMPLES:
+            shell(
+                """
+                bcftools view -O z -s {params.vcfsample_name} {input.pav_freeze_vcf} > {output.vcf_gz}
+                tabix -p vcf {output.vcf_gz}
+                """
+                )
+        elif params.vcfsample_name in PG_VCF_SAMPLES:
+            shell(
+                """
+                bcftools view -O z -s {params.vcfsample_name} {input.pg_vcf_gz} > {output.vcf_gz}
+                tabix -p vcf {output.vcf_gz}
+                """
+                )
+
+rule merge_plinks:
+    input:
+        similarities_phasing
+    output:
+        'res/similaritymerge.txt'
+    shell:
+        """
+        cat {input} > {output}
+        """
+
+
+
+################ RULES FOR PART 1:
+############### RUNNING REGENOTYPER MAIN PART, up to Phasing
+
+rule merge_alls:
+    input:
+        sv_calls_bulk = expand("{path}/regenotyper_samplewise_{{mode}}/{sample}/all/sv_calls_bulk.txt", path=path_to_pipe, sample=SAMPLES)
+    output:
+        expand("{path}/regenotyper_allsamples_{{mode}}/all_sv_calls_unphased.txt", path=path_to_pipe)
+    shell:
+        """
+        awk 'FNR==1 && NR!=1 {{ while (/^chrom/) getline; }} 1 {{print}}' {input.sv_calls_bulk} > {output}
+        """
+
+rule run_regenotypeR_samplewise_bulk:
+    '''
+    Invoke regenotype.R for each sample, creating a sv_calls_bulk and associated
+    plots for each sample
+    '''
+    input:
+        probabilities_table =
+            expand("{path}/sv_probabilities/{{sample}}/100000_fixed_norm.selected_j{j_val}_s{s_val}/probabilities.Rdata",
+            path=path_to_pipe, j_val=j, s_val=s),
+        msc =  expand("{path}/regenotyper_samplewise_{{mode}}/msc.debug", path=path_to_pipe)
+    output:
+        sv_calls_bulk =  expand("{path}/regenotyper_samplewise_{{mode}}/{{sample}}/all/sv_calls_bulk.txt", path=path_to_pipe)
+    params:
+        outputfolder =  expand("{path}/regenotyper_samplewise_{{mode}}/{{sample}}/", path=path_to_pipe)
+    shell:
+        """
+        {rscript_command} regenotype.R \
+                        -f {input.probabilities_table} \
+                        -c {input.msc} \
+                        -o {params.outputfolder}
+        """
+
+rule prepare_manual_segments_counts_debug:
+    '''
+    Take manual segments counts debugfile and prepare it in a way
+    that we can easily extract the information for n informative
+    bins per segment.
+    '''
+    input:
+        counts_file = expand("{path}/counts/{exsample}/manual_segments_counts.txt.debug", exsample = SAMPLES[0], path=path_to_pipe)
+    output:
+        msc = expand("{path}/regenotyper_samplewise_{{mode}}/msc.debug", path=path_to_pipe)
+    shell:
+        """
+        awk '!seen[$1,$2,$3]++' {input.counts_file} > {output.msc}
+        """

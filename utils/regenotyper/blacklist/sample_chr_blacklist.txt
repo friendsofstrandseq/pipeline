@@ -1,0 +1,5 @@
+sseqsample	chr
+HG02492	chr5
+HG02587	chr7
+HG02011	chr8
+HG03009	chr10

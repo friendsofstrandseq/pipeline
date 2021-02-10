@@ -1,0 +1,8 @@
+{
+    "blacklist" : "blacklist/sample_chr_blacklist.txt",
+    "vcfall_pangenie_hg38_full" : "/scratch/hoeps/genotypes/jana/pangenie_merged_bi_all.vcf.gz",
+    "vcfall_pav_hg38_full" : "/scratch/hoeps/genotypes/freeze4/variants_freeze4_snv_snv_alt.vcf",
+
+    "vcfall_pangenie_hg38_test" : "/scratch/hoeps/genotypes/tiny/pangenie.vcf.gz",
+    "vcfall_pav_hg38_test" : "/scratch/hoeps/genotypes/freeze4/tiny_freeze4.vcf.gz"
+}
