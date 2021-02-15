@@ -134,9 +134,19 @@ tabp3 = add_gts_revisited(tab, bias_factor, bias_add_factor, cutoff)
 
 # Merge valid bin information into tabp's
 tabp <- full_join(tabp, CNmerge, by = c("chrom","start","end"))
+tabp2 <- full_join(tabp2, CNmerge, by = c("chrom","start","end"))
 tabp3 <- full_join(tabp3, CNmerge, by = c("chrom","start","end"))
 
 ####################################################################################
+ "##fileformat=VCFv4.2\n##fileDate=2021-02-14\n##ALT=<ID=INV,Description=\"Inversion\">\n
+ ##INFO=<ID=ID,Number=A,Type=String,Description=\"Variant IDs per ALT allele.\">\n##INFO=<ID=END,Number=1,Type=Integer,Description=\"End position of the structural variant\">\n
+ ##INFO=<ID=SVMETHOD,Number=1,Type=String,Description=\"Type of approach used to detect SV\">\n
+ ##FORMAT=<ID=GT,Number=1,Type=String,Description=\"Main Genotype\">\n
+ ##INFO=<ID=AC,Number=A,Type=Integer,Description=\"Allele count in genotypes\">\n
+ ##INFO=<ID=AN,Number=1,Type=Integer,Description=\"Total number of alleles in called genotypes\">\n
+ ##reference=/g/solexa/bin/genomesNew/GRCh38Decoy/GRCh38Decoy.fa\n##contig=<ID=chr1,length=248956422>\n
+ 
+ ##contig=<ID=chr1,length=248956422>\n##contig=<ID=chr2,length=242193529>\n##contig=<ID=chr3,length=198295559>\n##contig=<ID=chr4,length=190214555>\n##contig=<ID=chr5,length=181538259>\n##contig=<ID=chr6,length=170805979>\n##contig=<ID=chr7,length=159345973>\n##contig=<ID=chr8,length=145138636>\n##contig=<ID=chr9,length=138394717>\n##contig=<ID=chr10,length=133797422>\n##contig=<ID=chr11,length=135086622>\n##contig=<ID=chr12,length=133275309>\n##contig=<ID=chr13,length=114364328>\n##contig=<ID=chr14,length=107043718>\n##contig=<ID=chr15,length=101991189>\n##contig=<ID=chr16,length=90338345>\n##contig=<ID=chr17,length=83257441>\n##contig=<ID=chr18,length=80373285>\n##contig=<ID=chr19,length=58617616>\n##contig=<ID=chr20,length=64444167>\n##contig=<ID=chr21,length=46709983>\n##contig=<ID=chr22,length=50818468>\n##contig=<ID=chrX,length=156040895>\n##contig=<ID=chrY,length=57227415>\n#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tGM12329\tGM18534\tGM18939\tGM19036\tGM19650\tGM19983\tGM20509\tGM20847\tHG00096\tHG00171\tHG002\tHG00512\tHG00513\tHG00514\tHG00731\tHG00732\tHG00733\tHG00864\tHG01114\tHG01505\tHG01573\tHG01596\tHG02011\tHG02018\tHG02492\tHG02587\tHG02818\tHG03009\tHG03065\tHG03125\tHG03371\tHG03486\tHG03683\tHG03732\tNA12878\tNA19238\tNA19239\tNA19240"
 
 # Cast table tabp3 into vcf-like matrix
 callmatrix = cast(unique(tabp3), chrom+start+end+ID+len+valid_bins~sample, value='GT')
@@ -159,7 +169,7 @@ cms_full = cbind(cms[,1:6], cms_gts)
 callmatrix = cast(unique(tabp), chrom+start+end+ID+len+valid_bins~sample, value='GT')
 
 # Tabp2: this is the one with LLH info included
-callmatrix_detail = cast(tabp2, chrom+start+end+ID+len~sample, value='GTL')
+callmatrix_detail = cast(tabp2, chrom+start+end+ID+len+valid_bins~sample, value='GTL')
 callmatrix_detail = callmatrix_detail[ , colSums(is.na(callmatrix_detail)) == 0]
 
 # Sidequest: find hom invs. A bit messy but we keep it for now. 
@@ -203,20 +213,19 @@ if (save==T){
   outvcffile = file.path(outdir, vcffile_all)
   writeLines(vcf[[1]], file(outvcffile))
   write.table(vcf[[2]], file=outvcffile, quote=F, col.names=F, row.names=F, sep='\t', append = T)
-  system(paste0('bcftools sort -O v -o ', outvcffile, ' ', outvcffile))
+  system(paste0('cat ',outvcffile,' | awk \'$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}\' > ', outvcffile, '_sorted'))
   
   # Save vcf_miso
   outvcffile_miso = file.path(outdir, vcffile_miso)
   writeLines(vcf_miso[[1]], file(outvcffile_miso))
   write.table(vcf_miso[[2]], file=outvcffile_miso, quote=F, col.names=F, row.names=F, sep='\t', append = T)
-  system(paste0('bcftools sort -O v -o ', outvcffile_miso, ' ', outvcffile_miso))
+  system(paste0('cat ',outvcffile_miso,' | awk \'$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}\' > ', outvcffile_miso, '_sorted'))
   
   # Save vcf_limix
   outvcffile_limix = file.path(outdir, vcffile_limix)
   writeLines(vcf_limix[[1]], file(outvcffile_limix))
   write.table(vcf_limix[[2]], file=outvcffile_limix, quote=F, col.names=F, row.names=F, sep='\t', append = T)
-  system(paste0('bcftools sort -O v -o ', outvcffile_limix, ' ', outvcffile_limix))
-  
+  system(paste0('cat ',outvcffile_limix,' | awk \'$1 ~ /^#/ {print $0;next} {print $0 | "sort -k1,1 -k2,2n"}\' > ', outvcffile_limix, '_sorted'))  
   # Save only complex stuff Complex exploration
   tabcomp = tab[tab$GTs == 'complex',]
   indiv_invs <- unique( tabcomp[ , 1:3 ] )
@@ -226,5 +235,3 @@ if (save==T){
     with(aa, order(chrom, start)),
     ]
 }
-
-
