@@ -64,7 +64,7 @@ mendel[is.na(mendel$HG00514_cons),]$HG00514_cons<-ifelse(((complex$HG00514_H1_C=
                                                             (complex$HG00514_H2_C==complex$HG00514_H1_F | complex$HG00514_H2_C==complex$HG00514_H2_F))|
                                                            ((complex$HG00514_H1_C==complex$HG00514_H1_F | complex$HG00514_H1_C==complex$HG00514_H2_F)&
                                                               (complex$HG00514_H2_C==complex$HG00514_H1_M | complex$HG00514_H2_C==complex$HG00514_H2_M)),
-                                                         'YES', 'NO')
+                                                         'TRUE', 'FALSE')
 #HG00733
 complex<- data.frame(mendel[is.na(mendel$HG00733_cons),]) 
 complex$HG00733_H1_M<-as.character(stri_sub_all(complex[,'genotypes.HG00732'], 1, 2))
@@ -77,7 +77,7 @@ mendel[is.na(mendel$HG00733_cons),]$HG00733_cons<-ifelse(((complex$HG00733_H1_C=
                                                             (complex$HG00733_H2_C==complex$HG00733_H1_F | complex$HG00733_H2_C==complex$HG00733_H2_F))|
                                                            ((complex$HG00733_H1_C==complex$HG00733_H1_F | complex$HG00733_H1_C==complex$HG00733_H2_F)&
                                                               (complex$HG00733_H2_C==complex$HG00733_H1_M | complex$HG00733_H2_C==complex$HG00733_H2_M)),
-                                                         'YES', 'NO')
+                                                         'TRUE', 'FALSE')
 #NA19240
 complex<- data.frame(mendel[is.na(mendel$NA19240_cons),]) 
 complex$NA19240_H1_M<-as.character(stri_sub_all(complex[,'genotypes.NA19239'], 1, 2))
@@ -90,22 +90,19 @@ mendel[is.na(mendel$NA19240_cons),]$NA19240_cons<-ifelse(((complex$NA19240_H1_C=
                                                             (complex$NA19240_H2_C==complex$NA19240_H1_F | complex$NA19240_H2_C==complex$NA19240_H2_F))|
                                                            ((complex$NA19240_H1_C==complex$NA19240_H1_F | complex$NA19240_H1_C==complex$NA19240_H2_F)&
                                                               (complex$NA19240_H2_C==complex$NA19240_H1_M | complex$NA19240_H2_C==complex$NA19240_H2_M)),
-                                                         'YES', 'NO')
+                                                         'TRUE', 'FALSE')
 
 #verdict for each inversion based on Mendelian consistency check
 mendel_genotypes<-data.frame(mendel$genotypes.chrom, mendel$genotypes.start,mendel$genotypes.end, mendel$HG00733_cons, mendel$HG00514_cons,mendel$NA19240_cons)
 for (m in 1:length(mendel_genotypes$mendel.genotypes.chrom)){
   #how many trios passed the test
   mendel_genotypes[m,'mendel_cons']<-ifelse(mendel_genotypes[m,'mendel.HG00733_cons']=='noreads'| mendel_genotypes[m,'mendel.HG00514_cons']=='noreads'|
-                                              mendel_genotypes[m,'mendel.HG00514_cons']=='noreads' , NA, length(which(mendel_genotypes[m,]=='YES')))
+                                              mendel_genotypes[m,'mendel.HG00514_cons']=='noreads' , NA, length(which(mendel_genotypes[m,]=='TRUE')))
   #whether the inversion passed the mendelian consistency check or not(atleast 2 trios should pass), '0' for Pass and '1' for Fail
   mendel_genotypes[m,'mendel_fail']<-ifelse(mendel_genotypes[m,'mendel_cons']>=2, 0, 1)
 }
-colnames(mendel_genotypes)<-c('chrom','start','end', 'HG00733_cons','HG00514_cons', 'NA19240_cons','Mendel_cons_trios', 'Mendel_fail')
-mendel_genotypes<-data.frame(mendel_genotypes$chrom, mendel_genotypes$start, mendel_genotypes$end, mendel_genotypes$Mendel_cons_trios, mendel_genotypes$Mendel_fail)
-colnames(mendel_genotypes)<-c('chrom','start','end','Mendel_cons_trios', 'Mendel_fail')
-mendel_genotypes$start<-as.integer(as.character(mendel_genotypes$start))
-mendel_genotypes$end<-as.integer(as.character(mendel_genotypes$end))
+mendel_genotypes<-mendel_genotypes[,c(1:6,8)]
+colnames(mendel_genotypes)<-c('chrom','start','end', 'mendel1','mendel2','mendel3', 'mendelfails')
 genotypes<-left_join(genotypes, mendel_genotypes,  by = c("chrom", "start", "end"))
 return(genotypes)
 }
