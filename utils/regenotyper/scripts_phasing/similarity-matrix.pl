@@ -168,7 +168,7 @@ foreach my $sample1 (sort keys %variants)
 	{
 		$matchcount = 0;
 		$totalcount = 0;
-		foreach $marker (sort keys $variants{$sample2})
+		foreach $marker (sort keys %{$variants{$sample2}})
 		{
 			#$call = $variants{$sample2}{$marker};
 			if (($variants{$sample1}{$marker} =~ /\.\/\./) or ($variants{$sample2}{$marker} =~ /\.\/\./))
