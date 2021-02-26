@@ -84,7 +84,8 @@ count_homhetrefetc <- function(cm_f, n_samples){
   cm_f$nref = rowSums2(cm_f=='0|0') + rowSums2(cm_f== '0|0_lowconf')
   cm_f$nnoreads = rowSums2(cm_f=='noreads')
   ##dealing with INVDUPs seperately
-  cm_f$inv_dup_hom <- rowSums2(cm_f == "1111") + rowSums2(cm_f=='1111_lowconf')
+  cm_f$inv_dup_hom <- rowSums2(cm_f == "1111") + rowSums2(cm_f=='1111_lowconf')+ rowSums2(cm_f == "2200") + rowSums2(cm_f=='2200_lowconf')+
+    rowSums2(cm_f == "0022") + rowSums2(cm_f=='0022_lowconf')
   cm_f$inv_dup_het <- rowSums2(cm_f == "1011") + rowSums2(cm_f=='1011_lowconf') + rowSums2(cm_f == "1110") + rowSums2(cm_f=='1110_lowconf')
   ##INVDUPs won't be counted as complex now
   cm_f$ncomplex = n_samples - (cm_f$nhom + cm_f$nhet + cm_f$nref + cm_f$nnoreads+ cm_f$inv_dup_hom + cm_f$inv_dup_het)
