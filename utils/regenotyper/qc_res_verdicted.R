@@ -8,7 +8,7 @@ library(reshape2)
 library(tibble)
 library(matrixStats)
 library(grid)
-library(dplyrs)
+library(dplyr)
 
 make_barplot_invwise <- function(rv_f, samples_f){
   
