@@ -65,7 +65,7 @@ CHRS = sorted(set(CHR))
 
 print('Samples considered:')
 print(SAMPLES)
-
+print(CHRS)
 
 ##############################
 ### now our targets ###
@@ -85,17 +85,29 @@ merged_outputtxt_phased = expand("{path}/regenotyper_allsamples_{mode}/all_sv_ca
 # Run 3: creating vcfs
 sample_vcf = expand("{path}/regenotyper_allsamples_{mode}/arbigent_results/res_all.vcf", path=path_to_pipe, mode=MODE)
 verdicted_table = expand("{path}/regenotyper_allsamples_{mode}/arbigent_results/res_verdicted.vcf", path=path_to_pipe, mode=MODE)
+verdict_plot = expand("{path}/regenotyper_allsamples_{mode}/arbigent_results/qc/lineplot_gts.pdf", path=path_to_pipe, mode=MODE) 
 
 # Put them into rule all
-rule all:
-    input:
-        per_sample_outputtxt,
-        merged_outputtxt_unphased,
-        similarities_phasing,
-        qc_plots_phasing,
-        merged_outputtxt_phased,
-        sample_vcf,
-        verdicted_table
+if PHASE:
+    rule all:
+        input:
+            per_sample_outputtxt,
+            merged_outputtxt_unphased,
+            similarities_phasing,
+            qc_plots_phasing,
+            merged_outputtxt_phased,
+            sample_vcf,
+            verdicted_table,
+            verdict_plot
+else:
+    rule all:
+        input:
+            per_sample_outputtxt,
+            merged_outputtxt_unphased,
+            sample_vcf,
+            verdicted_table,
+            verdict_plot
+
 
 #
 
@@ -112,6 +124,21 @@ rule all:
 
 ################ RULES FOR PART 3:
 ############### from Phased inversions to vcfs, QCs and filtered lists
+
+rule qc_result:
+    input:
+        verdicted_table = expand("{path}/regenotyper_allsamples_{{mode}}/arbigent_results/res_verdicted.vcf", path=path_to_pipe) 
+    output:
+        verdict_plot = expand("{path}/regenotyper_allsamples_{{mode}}/arbigent_results/qc/lineplot_gts.pdf", path=path_to_pipe) 
+    params:
+        qc_folder = expand("{path}/regenotyper_allsamples_{{mode}}/arbigent_results/qc", path=path_to_pipe) 
+    shell:
+        """
+        {rscript_command} qc_res_verdicted.R \
+                            -f {input.verdicted_table}
+                            -o {params.qc_folder}
+        """
+
 
 rule add_verdict:
     '''
@@ -205,9 +232,9 @@ else:
         If no phasing should be perfomed, we just copy over the old file.
         '''
         input:
-            all_txt = expand("{path}regenotyper_allsamples_{{mode}}/all_sv_calls_unphased.txt", path=path_to_pipe)
+            all_txt = expand("{path}/regenotyper_allsamples_{{mode}}/all_sv_calls_unphased.txt", path=path_to_pipe)
         output:
-            all_txt_rephased = expand("{path}regenotyper_allsamples_{{mode}}/all_sv_calls_unphased.txt", path=path_to_pipe)
+            all_txt_rephased = expand("{path}/regenotyper_allsamples_{{mode}}/all_sv_calls_phased.txt", path=path_to_pipe)
         shell:
             """
             cp {input.all_txt} > {output.all_txt_rephased}

@@ -110,17 +110,6 @@ if (is.null(opt$file)){
   stop("Please specify path to probabilities.R", call.=FALSE)
 }
 
-#Read the CN_mapability file first
-# if (is.null(CN_link)){
-#   print('No mapability/copy number track specified. Skipping that part.')
-#   CN = NULL
-# } else {
-#   print('Mapability/CN file provided. Reading and storing the information')
-#   CN = read.table(CN_link, stringsAsFactors = F, header=1);
-#   colnames(CN) = c('chrom','start','end','sample','INV', 'CN', 'mapability', 'n_mappable_bins')
-# }
-CN = NULL
-
 # Tell the user if we go for bed mode or single mode. At the occasion, also load it.
 if (is.null(labels_link)){
   print('No bed file specified. Examining everything together.')
@@ -134,45 +123,72 @@ if (is.null(labels_link)){
 }
 
 # sample name could be interesting
-sname = substring(p_link,data.frame(str_locate(p_link, 'HG|NA|GM'))$start,data.frame(str_locate(p_link, 'HG|NA|GM'))$start+6)
-# Special case for HG002, which has a different number of characters annoyingly.
-if (grepl("HG002", p_link, fixed = TRUE)){
-  sname = 'HG002'
-}
+sname = str_match(p_link, "([HG|NA|GM]+[0-9]{3,5})")[,2]
 
 # load p to p_grouped
 print('Loading probabilities table')
 probs_raw = load_and_prep_pdf(p_link)
 print('Done loading')
 
+# load file containing info on valid bins
 CN = read.table(debug_file, header=1, stringsAsFactors = F)
 
+# Cut CN down to important cols, then join it with probs so we know which inversion has how
+# many valid bins
 if (!is.null(CN)){
-  #CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","CN","mapability","n_mappable_bins")], as.character))
   CNmerge = as.data.frame(lapply(CN[, c("chrom","start","end","valid_bins")], as.character))
 
   CNmerge = as.tbl(CNmerge)
   CNmerge <- CNmerge %>%  mutate(chrom = as.character(chrom),
                                  start = as.numeric(as.character(start)),
                                  end = as.numeric(as.character(end)))#,
-  #                               CN = as.numeric(as.character(CN)))#,
-                                 #mapability = as.numeric(as.character(mapability)))
   p2 <- full_join(probs_raw, CNmerge, by = c("chrom","start","end"))
 
 
 }
+
+# Remove invalid bins from probs_raw
 probs_raw = p2[!is.na(p2$sample),]
 
+
+
+#############################################################
+#############################################################
+# ATTENTION LADIES AND GENTLEMEN, HERE IS THE NORMALIZATION #
+# PLEASE PAY CLOSE ATTENTION TO THIS                        #
+#############################################################
+
+# Using the valid_bin info, we can reconstruct the length
+# normalization factor here. It is between 0 and 1. 
+# Basically it is the mapability ratio (0 nothing, 1 perfect)
 len_normalization = as.numeric(as.character(probs_raw$valid_bins))/
   ((probs_raw$end - probs_raw$start)/100.)
-#len_normalization[len_normalization==0] = 1
-probs_raw$expected = probs_raw$expected * len_normalization
-#probs_raw$W = probs_raw$W / len_normalization
-#probs_raw$C = probs_raw$C / len_normalization
+len_normalization[len_normalization==0] = 1
 
-#
-# aaa = (p2[1:10,])
-# probs_raw$expected = probs_raw$expected *
+# Depending on how manual segment counts were normalized before, 
+# and depending on which normalization you want to have, you 
+# have to choose different options here. 
+# If they have been length normalized, I am using both options
+# A and B to arrive at the 'downscaling' solution ('2'). If A and
+# B are disabled, no further normalization is done. Since W and C
+# counts have been up-scaled by watson_crick_counts.py, this is 
+# also ok ('solution 1')
+# By all means check the qc plots that arrive at the end of the
+# snakemake!
+
+# option A: if we multiply by len_normalization, we remove previous
+# normalization, and return back to non-length-corrected counts.
+probs_raw$W = probs_raw$W * len_normalization
+probs_raw$C = probs_raw$C * len_normalization
+
+# option B: we can downscale expectations
+probs_raw$expected = probs_raw$expected * len_normalization
+
+
+##############################################################
+##############################################################
+##############################################################
+
 
 # Adding group information to probs_raw.
 if (is.null(labels)){
