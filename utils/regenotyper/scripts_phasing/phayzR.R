@@ -29,9 +29,9 @@ flip_gt <- function(gt_factors){
   
   # Make sure there are only simple and complex preds (n=3 and n=4)
   stopifnot(length(gt_list[nchar(as.character(gt_list)) == 3]) +
-            length(gt_list[nchar(as.character(gt_list)) == 4]) ==
-            length(gt_list)
-              )
+              length(gt_list[nchar(as.character(gt_list)) == 4]) ==
+              length(gt_list)
+  )
   
   # Flip simple preds
   gt_list[nchar(as.character(gt_list)) == 3] = 
@@ -62,10 +62,10 @@ unphase <- function(gt_factors){
     paste0(substr(gt_list[nchar(as.character(gt_list)) == 3], 3, 3),
            '/',
            substr(gt_list[nchar(as.character(gt_list)) == 3], 1, 1))
- 
+  
   # TODO
   # Complex preds we can't really do anything about them I'm afraid. 
-
+  
   return(gt_list)
 }
 
@@ -79,7 +79,7 @@ rename_samples <- function(phases_f, rename_f){
     phases_f[i,]$sseqsample =  rnames[rnames$sseq==phases_f[i,]$sample,]$sseqshort
   }
   
-
+  
   return(phases_f)
 }
 
@@ -107,12 +107,19 @@ renaming_file = opt$sampletransitions
 blacklist_file = opt$blacklist
 outdir = opt$outdir
 
-#regenotyper_res = '~/scratch/invphasing/input_regenotyper/all.txt'
-# #phases_file = '/home/hoeps/scratch/invphasing/res_backup2/similaritymerge.txt'
-#phases_file ='~/scratch/invphasing/res/similaritymerge.txt'
-#renaming_file = '~/scratch/invphasing/input_naming/samplenames_sseq_to_sseq_short.txt'
-#blacklist_file = '~/scratch/invphasing/blacklist/sample_chr_blacklist.txt'
-#outdir = '~/Desktop/lab/lab2'
+# regenotyper_res = '~/scratch/invphasing/input_regenotyper/all.txt'
+# phases_file = '/home/hoeps/scratch/invphasing/res_backup2/similaritymerge.txt'
+# #phases_file ='~/scratch/invphasing/res/similaritymerge.txt'
+# renaming_file = '~/scratch/invphasing/input_naming/samplenames_sseq_to_sseq_short.txt'
+# blacklist_file = '~/scratch/invphasing/blacklist/sample_chr_blacklist.txt'
+# outdir = '~/Desktop/lab/lab2'
+
+#regenotyper_res = "~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/regenotyper_allsamples_bulk/all_sv_calls_unphased.txt"
+#phases_file = '~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper/phasing_res/similaritymerge.txt'
+#blacklist_file = '~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper/phasing_res/blacklist/sample_chr_blacklist.txt'
+#renaming_file = '~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper/phasing_res/input_naming/samplenames_sseq_to_sseq_short.txt'
+#outdir = '~/Desktop/labphase'
+  
 
 all = read.table(regenotyper_res, sep=' ', header=T, stringsAsFactors = F)
 allbackup = all 
@@ -137,7 +144,7 @@ blacklist$sample_chr = paste0(blacklist$sseqsample, blacklist$chr)
 
 
 if ((dim(blacklist)[1]>0) && (any(phases_proc_rename$sample_chr %in% blacklist$sample_chr))){
-    phases_proc_rename[phases_proc_rename$sample_chr %in% blacklist$sample_chr,]$flip = 'blacklisted'
+  phases_proc_rename[phases_proc_rename$sample_chr %in% blacklist$sample_chr,]$flip = 'blacklisted'
 }
 
 # all.txt can contain 'nomappability' entries. If that is the case, replace them with ./.
@@ -147,8 +154,9 @@ if ('nomappability' %in% all$pred_hard){
 
 
 # Now the fuzzy part
-# loop over samples and chrs
+# loop over samples and chrs of phases_proc. Unseen samples are never considered here (!)
 for (sample in unique(phases_proc_rename$sseqsample)){
+
   for (chr in unique(phases_proc_rename$chr)){
     # Do GTs on this chr need to be flipped?
     # if needs to flip (flip = True)
@@ -170,6 +178,14 @@ for (sample in unique(phases_proc_rename$sseqsample)){
     }
   }
 }
+
+# Additionally, unphase all calls in samples which do not appear in the phases file
+unprocessed_samples = samplecheck_df[samplecheck_df$seen==F,]$sample
+all[(all$sample %in% unprocessed_samples),]$pred_hard = unphase(all[(all$sample %in% unprocessed_samples),]$pred_hard)
+all[(all$sample %in% unprocessed_samples),]$pred_soft = unphase(all[(all$sample %in% unprocessed_samples),]$pred_soft)
+all[(all$sample %in% unprocessed_samples),]$pred_nobias = unphase(all[(all$sample %in% unprocessed_samples),]$pred_nobias)
+all[(all$sample %in% unprocessed_samples),]$second_hard = unphase(all[(all$sample %in% unprocessed_samples),]$second_hard)
+
 
 # make/write LOG
 l1 = '## GT flipping log ##'

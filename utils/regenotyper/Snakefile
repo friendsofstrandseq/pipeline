@@ -25,7 +25,9 @@ s = '0.1'
 #############################################
 
 path_to_pipe = "/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline"
-SAMPLES = glob_wildcards("../../sv_probabilities/{sample}/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata")
+#SAMPLES = glob_wildcards("../../sv_probabilities/{sample}/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata")
+SAMPLES = glob_wildcards("../../regenotyper_samplewise_bulk/{sample}/all/")
+
 SAMPLES = list(SAMPLES)[0]#[0:2]
 
 #### Phasing related. These are relatively hardcoded, no need to change ####
@@ -237,7 +239,7 @@ else:
             all_txt_rephased = expand("{path}/regenotyper_allsamples_{{mode}}/all_sv_calls_phased.txt", path=path_to_pipe)
         shell:
             """
-            cp {input.all_txt} > {output.all_txt_rephased}
+            cp {input.all_txt} {output.all_txt_rephased}
             """
 
 
