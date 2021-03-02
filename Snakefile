@@ -1,4 +1,4 @@
-import math
+import math, csv, pathlib
 from collections import defaultdict
 
 configfile: "Snake.config.json"
@@ -27,6 +27,22 @@ for s in SAMPLES:
 
 
 import os.path
+
+
+
+def tellme_biological_sex(wildcards):
+    """
+    From now on, we determine the biological sex of the samples. 
+    This information is saved in a csv, and then read out by 
+    This function. It is used in the checkpoint function
+    (return_chrom)
+    """
+    sample_to_sex = csv.DictReader(open('sexinput/sexdict.csv'))
+    SAMPLEDICT={}
+    for row in sample_to_sex:
+        SAMPLEDICT[row['sample']] = row['sex']
+    return SAMPLEDICT[wildcards.sample]
+
 
 # Current state of the pipeline:
 # ==============================
@@ -67,8 +83,11 @@ METHODS_MANUAL_SEGMENTS = [
 
 METHODS = METHODS_MANUAL_SEGMENTS if config["manual_segments"] else METHODS
 
+#BPDENS = [
+#    "selected_j{}_s{}".format(joint, single) for joint in [0.1,0.01] for single in [0.5,0.1]
+#]
 BPDENS = [
-    "selected_j{}_s{}".format(joint, single) for joint in [0.1,0.01] for single in [0.5,0.1]
+    "selected_j{}_s{}".format(joint, single) for joint in [0.1] for single in [0.1]
 ]
 
 
@@ -109,15 +128,16 @@ if config["simulation_mode"]:
 elif config["manual_segments"]:
     rule all:
         input:
-             expand("sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens}/{method}.txt",
-                   sample = SAMPLES,
-                   chrom = config["chromosomes"],
-                   bin_size = [100000],
-                   bpdens = BPDENS,
-                   method = METHODS),
+            'sexinput/sexdict.csv',
+             #expand("sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens}/{method}.txt",
+             #      sample = SAMPLES,
+             #      chrom = config["chromosomes"],
+             #      bin_size = [100000],
+             #      bpdens = BPDENS,
+             #      method = METHODS),
              expand("sv_probabilities/{sample}/{bin_size}_fixed_norm.{bpdens}/probabilities.Rdata",
                      sample = SAMPLES,
-                     chrom = config["chromosomes"],
+                     #chrom = config["chromosomes"],
                      bin_size = [100000],
                      bpdens = BPDENS,
                      method = METHODS),
@@ -146,6 +166,47 @@ else:
                    bin_size = [100000],
                    suffix = ["fixed", "fixed_norm"]),
             expand("stats-merged/{sample}/stats.tsv", sample = SAMPLES),
+
+
+
+##########################
+# Determine sex 
+##########################
+# Depending on the biological sex of the sample, we want to analyse chrY or not. 
+# So for this, we count the reads mapping to chrY. 
+# Any sample where (reads_Y / reads_X) > 20%, we call male. 
+
+rule merge_sexdict:
+    input:
+        expand('sexinput/persample/{sample}.csv', sample=SAMPLES)
+    output:
+        'sexinput/sexdict.csv'
+    shell:
+        """
+        echo "sample,sex" > {output} | cat {input} >> {output}
+        """
+
+
+rule determine_sex_one_sample:
+    input:
+        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
+    output:
+        intermediate_files_X = 'sexinput/{sample}/counts_X.txt',
+        intermediate_files_Y = 'sexinput/{sample}/counts_Y.txt',
+        intermediate_files_XY = 'sexinput/{sample}/counts_XY.txt',
+        intermediate_files_XY_ann = 'sexinput/{sample}/counts_XY_ann.txt',
+        outdict = "sexinput/persample/{sample}.csv"
+    shell:
+        """
+        echo -n {wildcards.sample}, > {output.outdict}
+        for f in {input.bam} ; do samtools view -b $f chrY | wc -l >> {output.intermediate_files_Y}; done
+        for f in {input.bam} ; do samtools view -b $f chrX | wc -l >> {output.intermediate_files_X} ; done
+        paste {output.intermediate_files_X} {output.intermediate_files_Y} > {output.intermediate_files_XY}
+        awk '(($2/$1) > 0.2) {{print $1,$2,"male"; next}} {{print $1,$2,"female"}}' {output.intermediate_files_XY} > {output.intermediate_files_XY_ann}
+        awk '{{if(count[$3]++ >= max) max = count[$3]}} END {{for ( i in count ) if(max == count[i]) print i}}' {output.intermediate_files_XY_ann} >> {output.outdict}
+        """
+
+
 
 ################################################################################
 # Simulation of count data                                                     #
@@ -727,6 +788,7 @@ rule max_likelihood_sv_call:
 
 rule mosaiClassifier_calc_probs:
     input:
+        # [W] windows_specs is x_fixed_norm. 
         counts = "counts/{sample}/{window_specs}.txt.gz",
         info   = "counts/{sample}/{window_specs}.info",
         states = "strand_states/{sample}/{window_specs}.{bpdens}/intitial_strand_state" if config["simulation_mode"] else "strand_states/{sample}/{window_specs}.{bpdens}/final.txt",
@@ -949,10 +1011,63 @@ rule index_vcf:
     shell:
         "bcftools index --tbi {input.vcf}"
 
-rule merge_strandphaser_vcfs:
+
+checkpoint return_chrom:
+    # This is a CHECKPOINT. Requires Snakemake >= 5.0.0.
+    # The checkpoint thing is needed because the on-the-fly
+    # incorporation of chrY means that everything has become
+    # much more complicated. 
+    # The things happening in this function can well be described as a 'hack'.
     input:
-        vcfs=expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz", chrom=config["chromosomes"]),
-        tbis=expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz.tbi", chrom=config["chromosomes"]),
+        sexcsvfile = 'sexinput/sexdict.csv'
+    output:
+        directory('chrtemp/{sample}/'),
+    params:
+        sex = tellme_biological_sex,
+    run:
+        chrs = config['chromosomes'][params.sex]
+        pathlib.Path(str(output)).mkdir(parents=True, exist_ok=True)
+        for filename in chrs:
+            outfile = str(output)+"/"+str(filename)+".txt"
+            f = open(outfile, "w")
+            f.write('sup')
+            f.close
+
+
+
+def aggregate_phased_haps(wildcards):
+    '''
+    Aggregate chromosome names for that sample, return strand_states..phased_haps paths
+    '''
+    checkpoint_output = checkpoints.return_chrom.get(**wildcards).output[0]
+    return expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
+           chrom=glob_wildcards(os.path.join(checkpoint_output, '{i}.txt')).i)
+
+def aggregate_vcf_gz(wildcards):
+    '''
+    Aggregate chromosome names for that sample, return strand_states..phased vcf paths
+
+    '''
+    checkpoint_output = checkpoints.return_chrom.get(**wildcards).output[0]
+    return expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz",
+           chrom=glob_wildcards(os.path.join(checkpoint_output, '{i}.txt')).i)
+
+def aggregate_vcf_gz_tbi(wildcards):
+    '''
+    Aggregate chromosome names for that sample, return strand_states..phased vcf tbi paths
+    '''
+    checkpoint_output = checkpoints.return_chrom.get(**wildcards).output[0]
+    return expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz.tbi",
+           chrom=glob_wildcards(os.path.join(checkpoint_output, '{i}.txt')).i)
+
+
+rule merge_strandphaser_vcfs:
+    """
+    This function now waits for return_chrom and aggregate_vcf, to tell it which chromosomes should be run.
+    """
+    input:
+        vcfs= aggregate_vcf_gz,
+        tbis= aggregate_vcf_gz_tbi
     output:
         vcf='phased-snvs/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}.vcf.gz'
     log:
@@ -962,10 +1077,13 @@ rule merge_strandphaser_vcfs:
 
 
 
+
 rule combine_strandphaser_output:
+    """
+    This function now waits for return_chrom and aggregate_phased_haps, to tell it which chromosomes should be run.
+    """
     input:
-        expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/Phased/phased_haps.txt",
-                chrom = config["chromosomes"])
+        strand_states = aggregate_phased_haps
     output:
         "strand_states/{sample}/{window_specs}.{bpdens,selected_j[0-9\\.]+_s[0-9\\.]+}/strandphaser_output.txt"
     log:
@@ -973,7 +1091,7 @@ rule combine_strandphaser_output:
     shell:
         """
         set +o pipefail
-        cat {input} | head -n1 > {output};
+        cat {input.strand_states} | head -n1 > {output};
         tail -q -n+2 {input} >> {output};
         """
 
@@ -1114,13 +1232,14 @@ rule regenotype_SNVs:
 
 rule merge_SNV_calls:
     input:
-        expand("snv_calls/{{sample}}/{chrom}.vcf", chrom = config['chromosomes'])
+        sexcsvfile = 'sexinput/sexdict.csv',
+        snv_calls = lambda wc: expand("snv_calls/{{sample}}/{chrom}.vcf", chrom = config["chromosomes"][tellme_sex(sexcsv='sexinput/sexdict.csv', sample=wc.sample)])
     output:
         "snv_calls/{sample}/all.vcf"
     log:
         "log/merge_SNV_calls/{sample}.log"
     shell:
-        config["bcftools"] + " concat -O v -o {output} {input} 2>&1 > {log}"
+        config["bcftools"] + " concat -O v -o {output} {input.snv_calls} 2>&1 > {log}"
 
 rule split_external_snv_calls:
     input:
