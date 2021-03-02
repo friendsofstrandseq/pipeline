@@ -35,7 +35,9 @@ option_list = list(
   make_option(c("-o", "--outdir"), type="character", default="./outputcorr/",
               help="output dir name [default= %default]", metavar="character"),
   make_option(c("-c", "--cn_map"), type="character", default=NULL,
-              help="average copy numbers and mapability for all segments in given bed file", metavar="character")
+              help="average copy numbers and mapability for all segments in given bed file", metavar="character")#,
+#  make_option(c("-s", "--sample_sex"), type='character', default=NULL,
+#              help="Needed for proper normalization of read counts in gonosomes", metavar="character")
 );
 
 
@@ -89,8 +91,7 @@ p_link = opt$file
 labels_link = NULL#opt$bed
 outdir_raw = opt$outdir
 debug_file = opt$cn_map
-
-
+#sample_sex = opt$sample_sex
 
 
 ### switch modules on/off
@@ -188,6 +189,24 @@ probs_raw$expected = probs_raw$expected * len_normalization
 ##############################################################
 ##############################################################
 ##############################################################
+# Additionally: adjust expectations based on biological sex ##
+##############################################################
+
+if (sample_sex == 'male'){
+
+  # UPDATE: NO WE DONT HAVE TO NORMALIZE.
+  # In male samples, we expect half the number of reads on X ...
+  #probs_raw[probs_raw$chrom=='chrX',]$expected = (probs_raw[probs_raw$chrom=='chrX',]$expected) / 2
+  # And half in y 
+  #probs_raw[probs_raw$chrom=='chrY',]$expected = (probs_raw[probs_raw$chrom=='chrY',]$expected) / 2
+
+  # Remove WC and CW cells in chrX and Y. 
+  probs_raw = probs_raw[!((probs_raw$chrom == 'chrX') & (probs_raw$class %in% c('WC','CW'))),]
+  probs_raw = probs_raw[!((probs_raw$chrom == 'chrY') & (probs_raw$class %in% c('WC','CW'))),]
+} else {
+  probs_raw = probs_raw[!(probs_raw$chrom == 'chrY'),]
+}
+
 
 
 # Adding group information to probs_raw.
