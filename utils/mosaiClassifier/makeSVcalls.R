@@ -59,7 +59,7 @@ makeSVCallSimple <- function(probs, llr_thr = 1, use.pop.priors = FALSE, use.hap
 
   # annotate the ref_hom posterior probability per segment / cell
   probs[,
-        ref_hom_pp := .SD[haplo_name == "ref_hom", nb_hap_pp],
+        ref_hom_pp := .SD[haplo_name == "ref_hom", nb_hap_pp[1]],
         by = .(chrom, start, end, sample, cell)]
         
   # order the different haplotype states based on their posterior prob. (nb_hap_pp)
