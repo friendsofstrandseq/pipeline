@@ -137,7 +137,7 @@ rule qc_result:
     shell:
         """
         {rscript_command} qc_res_verdicted.R \
-                            -f {input.verdicted_table}
+                            -f {input.verdicted_table} \
                             -o {params.qc_folder}
         """
 
