@@ -1,7 +1,7 @@
 import math, csv, pathlib
 from collections import defaultdict
 
-configfile: "Snake.config.json"
+configfile: "Snake.config.chm13.json"
 
 SAMPLE,BAM = glob_wildcards("bam/{sample}/selected/{bam}.bam")
 SAMPLES = sorted(set(SAMPLE))
