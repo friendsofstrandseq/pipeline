@@ -188,45 +188,19 @@ rule merge_sexdict:
         """
 
 
-rule determine_sex_one_sample_part1_1:
+rule determine_sex_one_sample_part1:
     input:
         bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3],
         bam_bai = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
     output:
         intermediate_files_X = 'sexinput/{sample}/counts_X.txt',
-    log:
-        "log/determine_sex_one_sample_part1_1/{sample}.txt"
-    params:
-        samtools_command = config['samtools']
-    shell:
-        """ 
-        for f in {input.bam} ; do {samtools_command} view $f chrX | wc -l >> {output.intermediate_files_X}; done 2> {log}
-        """
-
-rule determine_sex_one_sample_part1_2:
-    input:
-        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3],
-        bam_bai = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
-    output:
         intermediate_files_Y = 'sexinput/{sample}/counts_Y.txt',
-    log:
-        "log/determine_sex_one_sample_part1_1/{sample}.txt"
-    params:
-        samtools_command = config['samtools']
-    shell:
-        """ 
-        for f in {input.bam} ; do {samtools_command} view $f chrY | wc -l >> {output.intermediate_files_Y}; done 2> {log}
-        """
-
-rule determine_sex_one_sample_part1_3:
-    input:
-        intermediate_files_X = 'sexinput/{sample}/counts_X.txt',
-        intermediate_files_Y = 'sexinput/{sample}/counts_Y.txt'
-    output:
         intermediate_files_XY = 'sexinput/{sample}/counts_XY.txt',
     shell:
         """ 
-        paste {input.intermediate_files_X} {input.intermediate_files_Y} > {output.intermediate_files_XY}
+        for f in {input.bam} ; do samtools view $f chrX | wc -l >> {output.intermediate_files_X} ; done
+        for f in {input.bam} ; do samtools view $f chrY | wc -l >> {output.intermediate_files_Y}; done
+        paste {output.intermediate_files_X} {output.intermediate_files_Y} > {output.intermediate_files_XY}
         """
 
 rule determine_sex_one_sample_part2:
