@@ -28,6 +28,7 @@ for s in SAMPLES:
 
 import os.path
 
+samtools_command = "/g/easybuild/x86_64/CentOS/7/haswell/software/SAMtools/1.9-foss-2018b/bin/samtools"
 
 
 def tellme_biological_sex(wildcards):
@@ -189,22 +190,32 @@ rule merge_sexdict:
 
 rule determine_sex_one_sample_part1_1:
     input:
-        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
+        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3],
+        bam_bai = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
     output:
         intermediate_files_X = 'sexinput/{sample}/counts_X.txt',
+    log:
+        "log/determine_sex_one_sample_part1_1/{sample}.txt"
+    params:
+        samtools_command = config['samtools']
     shell:
         """ 
-        for f in {input.bam} ; do samtools view -b $f chrX | wc -l >> {output.intermediate_files_X}; done
+        for f in {input.bam} ; do {samtools_command} view $f chrX | wc -l >> {output.intermediate_files_X}; done 2> {log}
         """
 
 rule determine_sex_one_sample_part1_2:
     input:
-        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
+        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3],
+        bam_bai = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
     output:
         intermediate_files_Y = 'sexinput/{sample}/counts_Y.txt',
+    log:
+        "log/determine_sex_one_sample_part1_1/{sample}.txt"
+    params:
+        samtools_command = config['samtools']
     shell:
         """ 
-        for f in {input.bam} ; do samtools view -b $f chrY | wc -l >> {output.intermediate_files_Y}; done
+        for f in {input.bam} ; do {samtools_command} view $f chrY | wc -l >> {output.intermediate_files_Y}; done 2> {log}
         """
 
 rule determine_sex_one_sample_part1_3:
@@ -635,7 +646,7 @@ if config["manual_segments"]:
                 bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
                 bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
                 bed = "manual_segmentation/{sample}.bed",
-                mapping = "mapping_counts_allchrs.txt"
+                mapping = config["arbigent_mapability_track"]
             output:
                 processing_counts="counts/{sample}/manual_segments_counts.txt"
                 #plotting_counts="counts/{sample}/manual_segments_counts_for_plots.txt",
