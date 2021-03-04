@@ -187,35 +187,19 @@ rule merge_sexdict:
         """
 
 
-rule determine_sex_one_sample_part1_1:
+rule determine_sex_one_sample_part1:
     input:
-        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
+        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3],
+        bam_bai = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
     output:
         intermediate_files_X = 'sexinput/{sample}/counts_X.txt',
-    shell:
-        """ 
-        for f in {input.bam} ; do samtools view -b $f chrX | wc -l >> {output.intermediate_files_X}; done
-        """
-
-rule determine_sex_one_sample_part1_2:
-    input:
-        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
-    output:
         intermediate_files_Y = 'sexinput/{sample}/counts_Y.txt',
-    shell:
-        """ 
-        for f in {input.bam} ; do samtools view -b $f chrY | wc -l >> {output.intermediate_files_Y}; done
-        """
-
-rule determine_sex_one_sample_part1_3:
-    input:
-        intermediate_files_X = 'sexinput/{sample}/counts_X.txt',
-        intermediate_files_Y = 'sexinput/{sample}/counts_Y.txt'
-    output:
         intermediate_files_XY = 'sexinput/{sample}/counts_XY.txt',
     shell:
         """ 
-        paste {input.intermediate_files_X} {input.intermediate_files_Y} > {output.intermediate_files_XY}
+        for f in {input.bam} ; do samtools view $f chrX | wc -l >> {output.intermediate_files_X} ; done
+        for f in {input.bam} ; do samtools view $f chrY | wc -l >> {output.intermediate_files_Y}; done
+        paste {output.intermediate_files_X} {output.intermediate_files_Y} > {output.intermediate_files_XY}
         """
 
 rule determine_sex_one_sample_part2:
