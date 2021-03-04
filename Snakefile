@@ -187,24 +187,58 @@ rule merge_sexdict:
         """
 
 
-rule determine_sex_one_sample:
+rule determine_sex_one_sample_part1_1:
     input:
         bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
     output:
         intermediate_files_X = 'sexinput/{sample}/counts_X.txt',
+    shell:
+        """ 
+        for f in {input.bam} ; do samtools view -b $f chrX | wc -l >> {output.intermediate_files_X}; done
+        """
+
+rule determine_sex_one_sample_part1_2:
+    input:
+        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
+    output:
         intermediate_files_Y = 'sexinput/{sample}/counts_Y.txt',
+    shell:
+        """ 
+        for f in {input.bam} ; do samtools view -b $f chrY | wc -l >> {output.intermediate_files_Y}; done
+        """
+
+rule determine_sex_one_sample_part1_3:
+    input:
+        intermediate_files_X = 'sexinput/{sample}/counts_X.txt',
+        intermediate_files_Y = 'sexinput/{sample}/counts_Y.txt'
+    output:
         intermediate_files_XY = 'sexinput/{sample}/counts_XY.txt',
+    shell:
+        """ 
+        paste {input.intermediate_files_X} {input.intermediate_files_Y} > {output.intermediate_files_XY}
+        """
+
+rule determine_sex_one_sample_part2:
+    input:
+        intermediate_files_XY = 'sexinput/{sample}/counts_XY.txt'
+    output:
         intermediate_files_XY_ann = 'sexinput/{sample}/counts_XY_ann.txt',
+    shell:
+        """
+        awk '(($2/$1) > 0.2) {{print $1,$2,"male"; next}} {{print $1,$2,"female"}}' {input.intermediate_files_XY} > {output.intermediate_files_XY_ann}
+        """
+
+rule determine_sex_one_sample_part3:
+    input:
+        intermediate_files_XY_ann = 'sexinput/{sample}/counts_XY_ann.txt',
+    output:
         outdict = "sexinput/persample/{sample}.csv"
     shell:
         """
         echo -n {wildcards.sample}, > {output.outdict}
-        for f in {input.bam} ; do samtools view -b $f chrY | wc -l >> {output.intermediate_files_Y}; done
-        for f in {input.bam} ; do samtools view -b $f chrX | wc -l >> {output.intermediate_files_X} ; done
-        paste {output.intermediate_files_X} {output.intermediate_files_Y} > {output.intermediate_files_XY}
-        awk '(($2/$1) > 0.2) {{print $1,$2,"male"; next}} {{print $1,$2,"female"}}' {output.intermediate_files_XY} > {output.intermediate_files_XY_ann}
-        awk '{{if(count[$3]++ >= max) max = count[$3]}} END {{for ( i in count ) if(max == count[i]) print i}}' {output.intermediate_files_XY_ann} >> {output.outdict}
+        awk '{{if(count[$3]++ >= max) max = count[$3]}} END {{for ( i in count ) if(max == count[i]) print i}}' {input.intermediate_files_XY_ann} >> {output.outdict}
         """
+
 
 
 
