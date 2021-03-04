@@ -38,7 +38,7 @@ def tellme_biological_sex(wildcards):
     This function. It is used in the checkpoint function
     (return_chrom)
     """
-    sample_to_sex = csv.DictReader(open('sexinput/sexdict.csv'))
+    sample_to_sex = csv.DictReader(open('output_biological_sex/sexdict.csv'))
     SAMPLEDICT={}
     for row in sample_to_sex:
         SAMPLEDICT[row['sample']] = row['sex']
@@ -129,7 +129,6 @@ if config["simulation_mode"]:
 elif config["manual_segments"]:
     rule all:
         input:
-            'sexinput/sexdict.csv',
              #expand("sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens}/{method}.txt",
              #      sample = SAMPLES,
              #      chrom = config["chromosomes"],
@@ -179,9 +178,9 @@ else:
 
 rule merge_sexdict:
     input:
-        expand('sexinput/persample/{sample}.csv', sample=SAMPLES)
+        expand('output_biological_sex/persample/{sample}.csv', sample=SAMPLES)
     output:
-        'sexinput/sexdict.csv'
+        'output_biological_sex/sexdict.csv'
     shell:
         """
         echo "sample,sex" > {output} | cat {input} >> {output}
@@ -190,12 +189,12 @@ rule merge_sexdict:
 
 rule determine_sex_one_sample_part1:
     input:
-        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:3],
-        bam_bai = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample])[0:3]
+        bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:10],
+        bam_bai = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample])
     output:
-        intermediate_files_X = 'sexinput/{sample}/counts_X.txt',
-        intermediate_files_Y = 'sexinput/{sample}/counts_Y.txt',
-        intermediate_files_XY = 'sexinput/{sample}/counts_XY.txt',
+        intermediate_files_X = temp('output_biological_sex/{sample}_counts_X.txt'),
+        intermediate_files_Y = temp('output_biological_sex/{sample}_counts_Y.txt'),
+        intermediate_files_XY = temp('output_biological_sex/{sample}_counts_XY.txt'),
     shell:
         """ 
         for f in {input.bam} ; do samtools view $f chrX | wc -l >> {output.intermediate_files_X} ; done
@@ -205,9 +204,9 @@ rule determine_sex_one_sample_part1:
 
 rule determine_sex_one_sample_part2:
     input:
-        intermediate_files_XY = 'sexinput/{sample}/counts_XY.txt'
+        intermediate_files_XY = 'output_biological_sex/{sample}_counts_XY.txt'
     output:
-        intermediate_files_XY_ann = 'sexinput/{sample}/counts_XY_ann.txt',
+        intermediate_files_XY_ann = temp('output_biological_sex/{sample}_counts_XY_ann.txt'),
     shell:
         """
         awk '(($2/$1) > 0.2) {{print $1,$2,"male"; next}} {{print $1,$2,"female"}}' {input.intermediate_files_XY} > {output.intermediate_files_XY_ann}
@@ -215,9 +214,9 @@ rule determine_sex_one_sample_part2:
 
 rule determine_sex_one_sample_part3:
     input:
-        intermediate_files_XY_ann = 'sexinput/{sample}/counts_XY_ann.txt',
+        intermediate_files_XY_ann = 'output_biological_sex/{sample}_counts_XY_ann.txt',
     output:
-        outdict = "sexinput/persample/{sample}.csv"
+        outdict = "output_biological_sex/persample/{sample}.csv"
     shell:
         """
         echo -n {wildcards.sample}, > {output.outdict}
@@ -535,12 +534,12 @@ rule generate_halo_json:
 
 if not config["simulation_mode"]:
     rule generate_exclude_file_1:
-        output:
-            temp("log/exclude_file.temp")
         input:
-            bam = expand("bam/{sample}/selected/{bam}.bam", sample = SAMPLES[0], bam = BAM_PER_SAMPLE[SAMPLES[0]][0])
+            bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample][0])
+        output:
+            temp("log/exclude_file_{sample}.temp")
         log:
-            "log/generate_exclude_file_1.log"
+            "log/generate_exclude_file_1_{sample}.log"
         params:
             samtools = config["samtools"]
         shell:
@@ -549,26 +548,27 @@ if not config["simulation_mode"]:
             """
 
     rule generate_exclude_file_2:
-        output:
-            "log/exclude_file"
         input:
-            "log/exclude_file.temp"
+            "log/exclude_file_{sample}.temp"
+        output:
+            "log/exclude_file_{sample}"
         params:
-            chroms = config["chromosomes"]
+            sex = tellme_biological_sex,
         run:
+            chroms = config['chromosomes'][params.sex]
             with open(input[0]) as f:
                 with open(output[0],"w") as out:
                     for line in f:
                         contig = line.strip().split()[1]
                         contig = contig[3:]
-                        if contig not in params.chroms:
+                        if contig not in chroms:
                             print(contig, file = out)
 
     rule mosaic_count_fixed:
         input:
             bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
             bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
-            excl = "log/exclude_file"
+            excl = "log/exclude_file_{sample}"
         output:
             counts = "counts/{sample}/{bin_size}_fixed.txt.gz",
             info   = "counts/{sample}/{bin_size}_fixed.info"
@@ -594,7 +594,7 @@ if not config["simulation_mode"]:
             bam = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample]),
             bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]),
             bed = lambda wc: config["variable_bins"][str(wc.bin_size)],
-            excl = "log/exclude_file"
+            excl = "log/exclude_file_{sample}"
         output:
             counts = "counts/{sample}/{bin_size}_variable.txt.gz",
             info   = "counts/{sample}/{bin_size}_variable.info"
@@ -627,7 +627,9 @@ if config["manual_segments"]:
             log:
                 "log/{sample}/watson_crick_counts.log",
             shell:
-                "python3 utils/watson_crick_counts.py -s {wildcards.sample} -i {input.bam} -b {input.bed} -n {output.processing_counts} -p blub.txt -mc {input.mapping}"
+                """
+                python3 utils/watson_crick_counts.py -s {wildcards.sample} -i {input.bam} -b {input.bed} -n {output.processing_counts} -p blub.txt -mc {input.mapping}
+                """
 
 rule extract_single_cell_counts:
     input:
@@ -1038,7 +1040,7 @@ checkpoint return_chrom:
     # much more complicated. 
     # The things happening in this function can well be described as a 'hack'.
     input:
-        sexcsvfile = 'sexinput/sexdict.csv'
+        sexcsvfile = 'output_biological_sex/sexdict.csv'
     output:
         directory('chrtemp/{sample}/'),
     params:
@@ -1251,8 +1253,8 @@ rule regenotype_SNVs:
 
 rule merge_SNV_calls:
     input:
-        sexcsvfile = 'sexinput/sexdict.csv',
-        snv_calls = lambda wc: expand("snv_calls/{{sample}}/{chrom}.vcf", chrom = config["chromosomes"][tellme_sex(sexcsv='sexinput/sexdict.csv', sample=wc.sample)])
+        sexcsvfile = 'output_biological_sex/sexdict.csv',
+        snv_calls = lambda wc: expand("snv_calls/{{sample}}/{chrom}.vcf", chrom = config["chromosomes"][tellme_sex(sexcsv='output_biological_sex/sexdict.csv', sample=wc.sample)])
     output:
         "snv_calls/{sample}/all.vcf"
     log:

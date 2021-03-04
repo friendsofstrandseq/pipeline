@@ -192,7 +192,7 @@ probs_raw$expected = probs_raw$expected * len_normalization
 # Additionally: adjust expectations based on biological sex ##
 ##############################################################
 
-if (sample_sex == 'male'){
+#if (sample_sex == 'male'){
 
   # UPDATE: NO WE DONT HAVE TO NORMALIZE.
   # In male samples, we expect half the number of reads on X ...
@@ -201,11 +201,11 @@ if (sample_sex == 'male'){
   #probs_raw[probs_raw$chrom=='chrY',]$expected = (probs_raw[probs_raw$chrom=='chrY',]$expected) / 2
 
   # Remove WC and CW cells in chrX and Y. 
-  probs_raw = probs_raw[!((probs_raw$chrom == 'chrX') & (probs_raw$class %in% c('WC','CW'))),]
-  probs_raw = probs_raw[!((probs_raw$chrom == 'chrY') & (probs_raw$class %in% c('WC','CW'))),]
-} else {
-  probs_raw = probs_raw[!(probs_raw$chrom == 'chrY'),]
-}
+#  probs_raw = probs_raw[!((probs_raw$chrom == 'chrX') & (probs_raw$class %in% c('WC','CW'))),]
+#  probs_raw = probs_raw[!((probs_raw$chrom == 'chrY') & (probs_raw$class %in% c('WC','CW'))),]
+#} else {
+#  probs_raw = probs_raw[!(probs_raw$chrom == 'chrY'),]
+#}
 
 
 

@@ -1,0 +1,1 @@
+name it mapping_counts_allchrs_chm13.txt or mapping_counts_allchrs_hg38.txt
