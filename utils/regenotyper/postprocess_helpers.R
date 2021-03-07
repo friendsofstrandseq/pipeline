@@ -63,7 +63,7 @@ cut_cm_to_samples <- function(cm_f, used_samples_uniq_f, n_overjump, include_chi
     
     # Use the samplenames from David's table to adjust ours. 
     newlabel = used_samples_uniq_f[grepl(substr(colnames(cm_f)[i],3,8),used_samples_uniq_f)]
-    print(newlabel)
+
     # If the sample wasn't found in David's table, we drop it. 
     if (length(newlabel)>0){
       colnames(cm_f)[i] = newlabel
@@ -79,49 +79,96 @@ cut_cm_to_samples <- function(cm_f, used_samples_uniq_f, n_overjump, include_chi
 }
 
 count_homhetrefetc <- function(cm_f, n_samples){
-  cm_f$nhom = rowSums2(cm_f=='1|1') + rowSums2(cm_f=='1|1_lowconf')
-  cm_f$nhet = rowSums2(cm_f=='1|0') + rowSums2(cm_f=='0|1') + rowSums2(cm_f=='1|0_lowconf') + rowSums2(cm_f=='0|1_lowconf')
-  #in addition to real REFs, counting duphoms also as REFs (to improve FP retrieval)
+
+
+  # Homozygous Duplications are counted as a 'reference' event here. This is to avoid missing FP verdicts. 
   cm_f$nref = rowSums2(cm_f=='0|0') + rowSums2(cm_f== '0|0_lowconf') + rowSums2(cm_f=='2020') + rowSums2(cm_f== '2020_lowconf')
+
+  # Inversions
+  cm_f$nhom = rowSums2(cm_f=='1|1') + rowSums2(cm_f=='1|1_lowconf')
+  cm_f$nhet = rowSums2(cm_f=='1|0') + rowSums2(cm_f=='0|1') + 
+              rowSums2(cm_f=='1|0_lowconf') + rowSums2(cm_f=='0|1_lowconf')
+
+  # Inverted duplications
+  cm_f$inv_dup_hom <- rowSums2(cm_f == "1111") + rowSums2(cm_f=='1111_lowconf') + 
+                      rowSums2(cm_f == "2200") + rowSums2(cm_f=='2200_lowconf')+
+                      rowSums2(cm_f == "0022") + rowSums2(cm_f=='0022_lowconf')
+  cm_f$inv_dup_het <- rowSums2(cm_f == "1011") + rowSums2(cm_f=='1011_lowconf') + 
+                      rowSums2(cm_f == "1110") + rowSums2(cm_f=='1110_lowconf')
+
+  # Noreads
   cm_f$nnoreads = rowSums2(cm_f=='noreads')
-  cm_f$inv_dup_hom <- rowSums2(cm_f == "1111") + rowSums2(cm_f=='1111_lowconf')+ rowSums2(cm_f == "2200") + rowSums2(cm_f=='2200_lowconf')+
-    rowSums2(cm_f == "0022") + rowSums2(cm_f=='0022_lowconf')
-  cm_f$inv_dup_het <- rowSums2(cm_f == "1011") + rowSums2(cm_f=='1011_lowconf') + rowSums2(cm_f == "1110") + rowSums2(cm_f=='1110_lowconf')
+
   cm_f$ncomplex = n_samples - (cm_f$nhom + cm_f$nhet + cm_f$nref + cm_f$nnoreads+ cm_f$inv_dup_hom + cm_f$inv_dup_het)
   return(cm_f)
 }
 
+
+
 apply_filter_new <- function(cm_f, samples){
   
-  # Judgement day: filter
-  cm_f$gt_events = cm_f$nhom + cm_f$nhet #+ cm_f$ncomplex 
-  cm_f$inv_dups<-cm_f$inv_dup_het+cm_f$inv_dup_hom
-  cm_f$verdict = 'UNK'
-  bincutoff = 5
-  
+  # Judgement day: filter. 
+  # First some preparations
+  cm_f$gt_events = cm_f$nhom + cm_f$nhet 
+  cm_f$n_inv_dups <- cm_f$inv_dup_het + cm_f$inv_dup_hom
   cols_to_add = c('lowconf','noreads','FP','alwayscomplex','MISO','Mendelfail', 'INVDUP')
-  cm_f$lowconf = cm_f$valid_bins <= bincutoff
-  cm_f$noreads = cm_f$nnoreads == length(samples)
-  #cm_f$FP = cm_f$gt_events == 0
-  cm_f$FP = cm_f$nref == length(samples)
-  #cm_f$alwayscomplex = (cm_f$ncomplex) >= 0.8*length(samples)
-  cm_f$alwayscomplex= cm_f$ncomplex == length(samples)
-  cm_f$MISO = cm_f$nhom >= 0.8*length(samples)
-  cm_f$Mendelfail = cm_f$mendelfails > 0
-  cm_f$INVDUP = cm_f$inv_dups>0
-  cm_f_i = cm_f[,cols_to_add]
+  cm_f$verdict = 'UNK'
   
+  bincutoff = 5 # For 'lowconf'
+
+  ### Intermezzo: special treatment for chrY, which is missing in female samples ###
+	cm_f[is.na(cm_f)] <- './.'
+
+  # Samplewise 'valid samples'. For chrY, this number will be lower. 
+  cm_f$n_valid_samples = 0
+  for (i in 1:dim(cm_f)[1]){
+    print(i)
+    cm_f[i,]$n_valid_samples = length(colnames(cm_f[i,samples])[cm_f[i,samples] != './.'])
+  }
+
+
+  # Apply verdicts based on sample GTs
+  cm_f$lowconf = cm_f$valid_bins <= bincutoff
+  cm_f$noreads = cm_f$nnoreads == cm_f$n_valid_samples
+
+  #False Positive ("FP") if all samples are reference
+  cm_f$FP = cm_f$nref == cm_f$n_valid_samples
+
+  # Alwayscomplex if all samples are complex 
+  cm_f$alwayscomplex= cm_f$ncomplex == cm_f$n_valid_samples
+
+  # Misorient: >= 80% of GTs are hom invs
+  cm_f$MISO = cm_f$nhom >= 0.8*cm_f$n_valid_samples
+
+  # Mendelfail: At least one trio fails mendelian consistency
+  cm_f$Mendelfail = cm_f$mendelfails > 0
+
+  # INVDUP: Any InvDup is observed
+  cm_f$INVDUP = cm_f$n_inv_dups > 0
+
+  cm_f_i = cm_f[,cols_to_add]
+
+  # Collapse the verdicts
   cm_f$verdict = apply(cm_f_i, 1, function(x) paste(names(cm_f_i)[x == T], collapse = "-"))
+
+  # If none of the above criteria applied, the verdict is a 'pass'
   cm_f[cm_f$verdict == '',]$verdict = 'pass'
   
   # Clean up
   cm_f[,cols_to_add] = NULL
   cm_f$gt_events = NULL
+  cm_f$n_inv_dups = NULL
+
   return(cm_f)
 }
 
 
+
 apply_filter <- function(cm_f, used_samples_uniq){
+
+  ##################
+  ### DEPRECATED ###
+  ##################
   # Judgement hour: filter
   cm_f$gt_events = cm_f$nhom + cm_f$nhet + cm_f$ncomplex 
   
@@ -153,7 +200,8 @@ apply_filter <- function(cm_f, used_samples_uniq){
   return(cm_f)
 }
 
-#' Make a vector to check inheritance plaisibilities
+
+#' Make a vector to check inheritance plausibilities
 #' @return child_expect, a vector describing excpected child genotypes given the parents.
 #' @author Wolfram Hoeps
 make_child_expect_vector <- function(){
@@ -186,10 +234,7 @@ test_mendel <- function(ce, gt_parent1, gt_parent2, gt_child){
   c1 = gt_parent1 %in% valid_gts
   c2 = gt_parent2 %in% valid_gts
   c3 = gt_child %in% valid_gts
-  #print(c1)
-  #print(c2)
-  #print(c3)
-  #return(gt_parent2)
+
   if (c1){
     if (c2){
       if (c3){
@@ -204,6 +249,8 @@ test_mendel <- function(ce, gt_parent1, gt_parent2, gt_child){
 
 
 add_mendelfails <- function(cm_f){
+  ### This should definitely be rewritten to a less hardcoded version ###
+
   ce = make_child_expect_vector()
   callmatrix = cm_f
   callmatrix$mendel1 = 'UNK'
@@ -221,4 +268,21 @@ add_mendelfails <- function(cm_f){
   
   callmatrix$mendelfails = rowSums(callmatrix[,c('mendel1','mendel2','mendel3')] == 'FALSE')
   return(callmatrix)
+}
+
+make_invdups_human_readable <- function(cm_f){
+
+  # Replacing complex label with simplified ones for inverted duplications
+  codes_idup_hom = c("1111", '1111_lowconf', "2200", '2200_lowconf', "0022", '0022_lowconf')
+  codes_idup_h1 = c('1110', '1110_lowconf')
+  codes_idup_h2 = c('1011', '1011_lowconf')
+
+  # looping through rows because i simply do not know how to do it better
+  for (row in seq(1:dim(cm_f)[1])){
+    cm_f[row,][cm_f[row,] %in% codes_idup_hom] = 'idup_hom'
+    cm_f[row,][cm_f[row,] %in% codes_idup_h1] = 'idup_h1'
+    cm_f[row,][cm_f[row,] %in% codes_idup_h2] = 'idup_h2'
+  }
+  return(cm_f)
+  
 }

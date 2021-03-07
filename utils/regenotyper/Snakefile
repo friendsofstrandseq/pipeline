@@ -1,6 +1,6 @@
 # Whoeps, 9th Feb 2021
 # This snakemake is intended to run the regenotyper part fully automatic.
-
+print('sup')
 # Load libraries
 import csv
 
