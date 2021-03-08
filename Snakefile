@@ -535,7 +535,8 @@ rule generate_halo_json:
 if not config["simulation_mode"]:
     rule generate_exclude_file_1:
         input:
-            bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample][0])
+            bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample][0]),
+            sd= 'output_biological_sex/sexdict.csv'
         output:
             temp("log/exclude_file_{sample}.temp")
         log:
