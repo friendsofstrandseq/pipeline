@@ -38,7 +38,8 @@ def tellme_biological_sex(wildcards):
     This function. It is used in the checkpoint function
     (return_chrom)
     """
-    sample_to_sex = csv.DictReader(open('output_biological_sex/sexdict.csv'))
+
+    sample_to_sex = csv.DictReader(open('output_biological_sex/persample/'+str(wildcards.sample)+'.csv'))
     SAMPLEDICT={}
     for row in sample_to_sex:
         SAMPLEDICT[row['sample']] = row['sex']
@@ -176,15 +177,15 @@ else:
 # So for this, we count the reads mapping to chrY. 
 # Any sample where (reads_Y / reads_X) > 20%, we call male. 
 
-rule merge_sexdict:
-    input:
-        expand('output_biological_sex/persample/{sample}.csv', sample=SAMPLES)
-    output:
-        'output_biological_sex/sexdict.csv'
-    shell:
-        """
-        echo "sample,sex" > {output} | cat {input} >> {output}
-        """
+#rule merge_sexdict:
+#    input:
+#        expand('output_biological_sex/persample/{sample}.csv', sample=SAMPLES)
+#    output:
+#        'output_biological_sex/sexdict.csv'
+#    shell:
+#        """
+#        echo "sample,sex" > {output} | cat {input} >> {output}
+#        """
 
 
 rule determine_sex_one_sample_part1:
@@ -219,8 +220,10 @@ rule determine_sex_one_sample_part3:
         outdict = "output_biological_sex/persample/{sample}.csv"
     shell:
         """
-        echo -n {wildcards.sample}, > {output.outdict}
-        awk '{{if(count[$3]++ >= max) max = count[$3]}} END {{for ( i in count ) if(max == count[i]) print i}}' {input.intermediate_files_XY_ann} >> {output.outdict}
+        echo -n {wildcards.sample}, > {output.outdict}_pre
+        awk '{{if(count[$3]++ >= max) max = count[$3]}} END {{for ( i in count ) if(max == count[i]) print i}}' {input.intermediate_files_XY_ann} >> {output.outdict}_pre
+
+        echo "sample,sex" > {output.outdict} | cat {output.outdict}_pre >> {output.outdict}
         """
 
 
@@ -536,7 +539,7 @@ if not config["simulation_mode"]:
     rule generate_exclude_file_1:
         input:
             bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample][0]),
-            sd = 'output_biological_sex/sexdict.csv'
+            sexinfo = "output_biological_sex/persample/{sample}.csv"
         output:
             temp("log/exclude_file_{sample}.temp")
         log:
@@ -1041,7 +1044,8 @@ checkpoint return_chrom:
     # much more complicated. 
     # The things happening in this function can well be described as a 'hack'.
     input:
-        sexcsvfile = 'output_biological_sex/sexdict.csv'
+        #sexcsvfile = 'output_biological_sex/sexdict.csv'
+        sexcsvfile = 'output_biological_sex/persample/{sample}.csv'
     output:
         directory('chrtemp/{sample}/'),
     params:
@@ -1082,6 +1086,13 @@ def aggregate_vcf_gz_tbi(wildcards):
     return expand("strand_states/{{sample}}/{{window_specs}}.{{bpdens}}/StrandPhaseR_analysis.{chrom}/VCFfiles/{chrom}_phased.vcf.gz.tbi",
            chrom=glob_wildcards(os.path.join(checkpoint_output, '{i}.txt')).i)
 
+def aggregate_snv_calls(wildcards):
+    '''
+    Aggregate chromosome names for that sample, return snv_calls/.../chrom.vcf
+    '''
+    checkpoint_output = checkpoints.return_chrom.get(**wildcards).output[0]
+    return expand("snv_calls/{{sample}}/{chrom}.vcf",
+           chrom=glob_wildcards(os.path.join(checkpoint_output, '{i}.txt')).i)
 
 rule merge_strandphaser_vcfs:
     """
@@ -1254,8 +1265,9 @@ rule regenotype_SNVs:
 
 rule merge_SNV_calls:
     input:
-        sexcsvfile = 'output_biological_sex/sexdict.csv',
-        snv_calls = lambda wc: expand("snv_calls/{{sample}}/{chrom}.vcf", chrom = config["chromosomes"][tellme_sex(sexcsv='output_biological_sex/sexdict.csv', sample=wc.sample)])
+        #sexcsvfile = 'output_biological_sex/sexdict.csv',
+        sexcsvfile = 'output_biological_sex/persample/{sample}.csv',
+        snv_calls = aggregate_snv_calls
     output:
         "snv_calls/{sample}/all.vcf"
     log:
