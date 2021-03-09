@@ -36,6 +36,11 @@ def parse_command_line():
         type=str,
         default=''
     )
+    parser.add_argument("-l", "--lengthcorr_bool",
+        action='store_true',
+        help="Whether or not to perform length normalization",
+        default=False
+        )
     # since the binary HDF file will be created in the background,
     # and be used implicitly is present, parallelization can be
     # dangerous if several processes (e.g., as executed in a Snakemake
@@ -105,7 +110,7 @@ def filter_reads(align_read):
 
 def aggregate_segment_read_counts(process_args):
 
-    chrom, sample, segment_file, bam_folder, mappability_track, bin_size, min_correct_reads = process_args
+    chrom, sample, segment_file, bam_folder, mappability_track, bin_size, min_correct_reads, lengthcorr_bool = process_args
 
     segments = pd.read_csv(
         segment_file,
@@ -127,7 +132,7 @@ def aggregate_segment_read_counts(process_args):
     )
     segments['start_bin'] = segments['start_bin'].astype(np.int64)
     segments['end_bin'] = segments['end_bin'].astype(np.int64)
-    
+
     with pd.HDFStore(mappability_track, 'r') as hdf:
         correct_counts = hdf[os.path.join(chrom, 'correct')].values
         incorrect_counts = hdf[os.path.join(chrom, 'incorrect')].values
@@ -141,7 +146,7 @@ def aggregate_segment_read_counts(process_args):
     for bam_file in glob_path:
         assert os.path.isfile(str(bam_file) + '.bai'), 'No BAM index file detected for {}'.format(bam_file)
         cell = os.path.basename(bam_file).rsplit('.', 1)[0]
-        
+
         with pysam.AlignmentFile(bam_file, mode='rb') as bam:
             for idx, row in segments.iterrows():
                 counts = pd.DataFrame(
@@ -163,7 +168,7 @@ def aggregate_segment_read_counts(process_args):
                         continue
 
                 # select only bins where the number of correct reads (simulation data) is above threshold
-                select_correct_threshold = np.array(counts.loc['correct', :] > min_correct_reads, dtype=np.bool)
+                select_correct_threshold = np.array(counts.loc['correct', :] >= min_correct_reads, dtype=np.bool)
 
                 # select only bins where the number of incorrect reads (simulation data) is lower than 10% relative to correct reads
                 select_low_incorrect = ~np.array(counts.loc['incorrect', :] >= (0.1 * counts.loc['correct', :]), dtype=np.bool)
@@ -189,10 +194,15 @@ def aggregate_segment_read_counts(process_args):
                 total_watson_norm = counts.loc['watson', :].sum()
                 total_crick_norm = counts.loc['crick', :].sum()
 
-                # compute length normalization factor
-                length_norm = 0
-                if valid_bins > 0:
-                    length_norm = (row['end'] - row['start']) / (valid_bins * bin_size)
+                # Length-correct counts if needed.
+                if True:
+                    #if lengthcorr_bool:
+                    # compute length normalization factor
+                    length_norm = 0
+                    if valid_bins > 0:
+                        length_norm = (row['end'] - row['start']) / (valid_bins * bin_size)
+                else:
+                    length_norm = 1
                 total_watson_norm *= length_norm
                 total_crick_norm *= length_norm
 
@@ -248,20 +258,20 @@ def counts(sample, input_bam, input_bed, norm_count_output, mapping_counts, norm
         reads_originated = int(line[3])
         reads_mapped = int(line[4])
         dictionary[chrom][(interval_start, interval_end)]=(reads_originated, reads_mapped)
-    
+
     watson_count=0
     crick_count=0
     norm_counts_file= open(norm_count_output, 'w')
     # Write header to output file
     norm_counts_file.write('chrom'+ "\t"+ 'start'+ "\t" + 'end'+ "\t" + 'sample' + "\t" + 'cell' + "\t" + 'C'+ "\t" + 'W' +"\n")
-    
+
     norm_plots_file = open(norm_plot_output, 'w')
     norm_plots_file.write('chrom'+ "\t"+ 'start'+ "\t" + 'end'+ "\t" + 'sample' + "\t" + 'cell' + "\t" + 'C'+ "\t" + 'W' +"\n")
-    
+
     # Get all bam file paths
     path = Path(input_bam)
     glob_path = path.glob('*.bam')
-    
+
     # Iterate over each cell / bam file
     for file in glob_path:
         # Load the according file
@@ -293,7 +303,7 @@ def counts(sample, input_bam, input_bed, norm_count_output, mapping_counts, norm
                 whole_crick=0.0
                 whole_watson=0.0
                 start_check=0
-                bins_used=0 
+                bins_used=0
                 #do bin wise normalization, i.e multiply bin norm_factor individually to each bin count instead of doing it for the whole segment collectively.
                 for m in sub_dictionary:
                     mapped_count=sub_dictionary[m][1]
@@ -311,9 +321,9 @@ def counts(sample, input_bam, input_bed, norm_count_output, mapping_counts, norm
                         elif seg_start_bin<=m[0] and seg_end >=m[1] and mapped_count>90:
                             seg_start_bin=m[0]
                             seg_end_bin=m[1]
-                             
+
                             normalizing_factor_counts= 100/mapped_count
-                                                                                                                                             
+
                             # Fetch all bam entries that fall in this bin.
                             for read in bam_file.fetch(chromosome, seg_start_bin, seg_end_bin):
                                 # We want to exclude reads that match any of these 5 failing criteria
@@ -327,7 +337,7 @@ def counts(sample, input_bam, input_bed, norm_count_output, mapping_counts, norm
                                 c6 = 'read.pos < seg_start_bin'
                                 c7 = 'read.pos >= seg_end_bin'
                                 if any([eval(c1),eval(c2),eval(c3),eval(c4),eval(c5),eval(c6),eval(c7)]):
-                                    pass 
+                                    pass
                                 else:
                                     if read.is_reverse:
                                         watson_count+=1
@@ -347,21 +357,21 @@ def counts(sample, input_bam, input_bed, norm_count_output, mapping_counts, norm
                                     else:
                                         pass
                             if crick_count > 0:
-                                print('norm factor ', normalizing_factor_counts)                    
+                                print('norm factor ', normalizing_factor_counts)
                             #normalising both watson and crick counts to make the heights comparable
                             norm_crick_counts_bin= float(crick_count * normalizing_factor_counts)
                             norm_watson_counts_bin= float(watson_count * normalizing_factor_counts)
                             segment_bins.append((norm_crick_counts_bin, norm_watson_counts_bin, crick_count, watson_count))
-                            
+
                             # remember how many valid bins we have used
                             bins_used += 1
                             # Reset count for next bin of this segment
                             watson_count = 0
                             crick_count = 0
-                            
-                            #move to the next bin 
+
+                            #move to the next bin
                             seg_start_bin=seg_end_bin+1
-                            
+
                 #now add up watson_crick counts (normalizesd) per bin
                 for seg_count in segment_bins:
                     if seg_count[0]:
@@ -370,7 +380,7 @@ def counts(sample, input_bam, input_bed, norm_count_output, mapping_counts, norm
                         print('watson segment ', seg_count[1])
                     norm_crick_counts+=float(seg_count[0])
                     norm_watson_counts+=float(seg_count[1])
-                
+
                 # Normalize for combined bin length
                 if bins_used > 0:
                     len_norm = interval / (bins_used * 100.)
@@ -388,11 +398,11 @@ def counts(sample, input_bam, input_bed, norm_count_output, mapping_counts, norm
                 print('crick l-norm ', norm_crick_counts)
                 print('watson l-norm ', norm_watson_counts)
 
-                
+
                 norm_counts_file.write(str(chromosome)+ "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) +"\t" +str(norm_crick_counts)+ "\t" + str(norm_watson_counts)+ "\n")
                 norm_plots_file.write(str(chromosome)+  "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) +"\t" +str(norm_crick_plots)+ "\t" + str(norm_watson_plots)+ "\n")
                 #norm_plots_file.write(str(chromosome)+  "\t"+ str(seg_start)+ "\t" + str(seg_end) + "\t" + str(sample) + "\t" + str(cell) +"\t" +str(norm_crick_counts)+ "\t" + str(norm_watson_counts)+ "\n")
-               
+
 
 
 
@@ -437,7 +447,7 @@ def convert_mapping_counts(raw_counts, process_chrom):
                 with pd.HDFStore(hdf_file, 'a') as hdf:
                     hdf.put(os.path.join(last_chrom, 'correct'), pd.Series(correct_counts, dtype=np.int8), format='fixed')
                     hdf.put(os.path.join(last_chrom, 'incorrect'), pd.Series(incorrect_counts, dtype=np.int8), format='fixed')
-                
+
                 correct_counts = []
                 incorrect_counts = []
 
@@ -456,8 +466,8 @@ def convert_mapping_counts(raw_counts, process_chrom):
             assert correct_reads < 127, 'Count of correct reads too large (must be < 127): {}'.format(correct_reads)
             correct_counts.append(correct_reads)
             incorrect_counts.append(incorrect_reads)
-    
-    # dump last 
+
+    # dump last
     if correct_counts:
         with pd.HDFStore(hdf_file, 'a') as hdf:
             hdf.put(os.path.join(last_chrom, 'correct'), pd.Series(correct_counts, dtype=np.int8), format='fixed')
@@ -487,15 +497,15 @@ def main():
         args.map_counts,
         args.chromosome
         )
-    
+
     chroms_to_process = []
     if args.chromosome != 'genome':
         chroms_to_process = [args.chromosome]
     else:
         with pd.HDFStore(map_counts_file, 'r') as hdf:
             chroms_to_process = set([os.path.dirname(c).strip('/') for c in hdf.keys()])
-    print('im happy with the hdf5. doing real work now') 
-    param_list = [(c, args.sample, args.input_bed, args.input_bam, map_counts_file, args.bin_size, args.min_mapp) for c in chroms_to_process]
+
+    param_list = [(c, args.sample, args.input_bed, args.input_bam, map_counts_file, args.bin_size, args.min_mapp, args.lengthcorr_bool) for c in chroms_to_process]
     merge_list = []
     with mp.Pool(min(len(chroms_to_process), args.jobs)) as pool:
         res_iter = pool.imap_unordered(aggregate_segment_read_counts, param_list)
@@ -514,11 +524,9 @@ def main():
     output[reduced_output].to_csv(args.norm_plot_output, index=False, header=True, sep='\t')
 
     output.to_csv(args.norm_count_output + '.debug', index=False, header=True, sep='\t')
-            
+
     return 0
 
 
 if __name__ == "__main__":
     main()
-
-
