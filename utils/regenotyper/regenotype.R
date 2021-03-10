@@ -15,6 +15,8 @@ print('Initialising Regenotyper...')
 oldw <- getOption("warn")
 options(warn = -1)
 
+setwd('/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper')
+
 #!/usr/bin/env Rscript
 suppressMessages(library("optparse"))
 suppressMessages(library("tidyr"))
@@ -25,7 +27,6 @@ suppressMessages(source("bulk_helpers.R"))
 # Slighlty obscure package to handle numbers smaller than 10^-300 (LLHs can get small...)
 suppressMessages(library("Brobdingnag"))
 
-
 # INPUT INSTRUCTIONS
 option_list = list(
   make_option(c("-f", "--file"), type="character", default=NULL,
@@ -35,7 +36,9 @@ option_list = list(
   make_option(c("-o", "--outdir"), type="character", default="./outputcorr/",
               help="output dir name [default= %default]", metavar="character"),
   make_option(c("-c", "--cn_map"), type="character", default=NULL,
-              help="average copy numbers and mapability for all segments in given bed file", metavar="character")#,
+              help="average copy numbers and mapability for all segments in given bed file", metavar="character"),
+  make_option(c("-m", "--mode"), type="character", default=NULL,
+              help="Can be bulk or single-cell.", metavar="character")           
 #  make_option(c("-s", "--sample_sex"), type='character', default=NULL,
 #              help="Needed for proper normalization of read counts in gonosomes", metavar="character")
 );
@@ -50,59 +53,35 @@ opt = parse_args(opt_parser);
 print('Processing and summarizing information, making plots')
 print('This can take a few minutes.')
 
-### This block is for debug mode. ###
-#p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/sv_probabilities/HG00733/100000_fixed_norm.selected_j0.1_s0.5/probabilities.Rdata'
-#p_link ='../../results/HG733_norm2/probabilities.Rdata'
-#p_link = '../../results/HG00733_wolfy2/probabilities.Rdata'
-#outdir_raw = '../../results/HG00733_wolfy2/restrash'
-#labels_link = '../../results/HG733_hgsvc/naming_HG733_sd.bed'
-#outdir_raw = '../../results/HG00733_diagnose/resbulk2/'
-#labels_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/HG733_postcorr/naming_HG733.bed'
-#####################################
-#p_link ='../../results/U24_peter/HG00733_aug31_redo/probabilities.Rdata'
-#p_link = '../../results/U24_peter/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata'
-#labels_link = '../../results/U24_peter/naming/HG00733_peterash_sort.bed'
-#outdir_raw = '../../results/deleteme4/'
-#outdir_raw = '../../results/deletemealso3/'
-#labels_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/HG01114_first/easy_naming.bed'
-#p_link = '../../results/U24_peter/sv_probabilities/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.5/probabilities.Rdata'
-#labels_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/bed_factory/audano_3/wgot/done_withnames/newnames/HG00733.bed'
-#outdir_raw = '../../results/U24_peter/sv_probabilities/HWWKWAFXY_HG03683x01_19s004569-1-1/res/'
-#p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/david_hack_wolfy/sv_probabilities/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.5/probabilities.Rdata"
-#pp = readRDS(p_link)
-#p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/U24_peter/sv_probabilities/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.5/probabilities.Rdata"
-#p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/sv_probabilities_U24_David_calls_hackathon/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata"
-#p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/hack_32/sv_probabilities/HG00733/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata"
-#p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/sept18_U32/sv_probabilities/HWWKWAFXY_HG03683x01_19s004569-1-1/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata"
-#p_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/sept22_U32/sv_probabilities/HG00733/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata"
-#p_link = "/home/hoeps/Desktop/probabilities.Rdata"
-#CN_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks2/Mapping_Normalization/CN_track_plots/result/nonred_inversions_n32_CN.txt"
-#CN_link = "/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/tracks_hufsah_21sept_second/result/00733_CN.txt"
-#outdir_raw = "./deleteme/"
-#labels_link = NULL
-#p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/illumina_2dec7/sv_probabilities/HWV7FAFXY_HG00864x02_19s004812-1-1/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata'
-#p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/review_david323/sv_probabilities/NA19239/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata'
-#p_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/HG00733_oct12/probabilities.Rdata'
-#labels_link = '//home/hoeps/PhD/projects/huminvs/mosaicatcher/bed_factory/hgsvc1_large/merged_sorted_corrected.bed'
-#CN_link = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/tracks/tracks_hufsah_21sept_second/result/00733_CN.txt'
-#outdir_raw = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/review_david323/sv_probabilities/NA19239/res2'
-#debug_file = '/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/results/review_david323/msc.debug'
 p_link = opt$file
 labels_link = NULL#opt$bed
 outdir_raw = opt$outdir
 debug_file = opt$cn_map
 #sample_sex = opt$sample_sex
+m = opt$mode
 
-
+if (m == 'single-cell'){
 ### switch modules on/off
-make_bell_bulk = T
-make_table_bulk = T
-make_bee_bulk = F
+  make_bell_bulk = F
+  make_table_bulk = F
+  make_bee_bulk = F
 
-make_bell_sc = F
-make_table_sc = F
-make_bee_sc = F
+  make_bell_sc = F
+  make_table_sc = F
+  make_bee_sc = F
 
+  run_singlecell_mode = T
+} else {
+  make_bell_bulk = T
+  make_table_bulk = T
+  make_bee_bulk = F
+
+  make_bell_sc = F
+  make_table_sc = F
+  make_bee_sc = F
+
+  run_singlecell_mode = F
+}
 suppressMessages(dir.create(outdir_raw))
 
 # is input file specified?
@@ -150,7 +129,7 @@ if (!is.null(CN)){
 
 # Remove invalid bins from probs_raw
 probs_raw = p2[!is.na(p2$sample),]
-
+probs_raw = probs_raw[probs_raw$chrom == 'chr22',]
 
 
 #############################################################
@@ -361,6 +340,25 @@ for (group in unique(probs_raw$group)){
     #### [II]c) save beewarm plots ###
     save_beeswarms(pg, call_llhs, outdir, testrun=F)
     print(paste0('Group ', group,' done.'))
+  }
+
+  if (run_singlecell_mode){
+    # rectify logllh Nan. It will be overwritten anyway. Just want to avoid NA errors
+    if (dim(pg[is.na(pg$logllh),])[1] > 0){
+    pg[is.na(pg$logllh),]$logllh = -1
+    }
+    print(length(unique(pg$cell)))
+    print(dim(pg))
+    print(dim(pg)[1]/length(unique(pg$cell)))
+    # re-calculate logllh based on mapping parameters
+    pg2 = calc_new_logllhs_singlecell(pg)
+    # make an output table
+    print('debug1')
+    tab = make_table_sc_separated(pg2)
+    cols_to_return = c('cell','chrom','start','end','class','expected','W','C','top_pred','second_pred','llr_1st_to_2nd','llr_1st_to_ref')
+    tab = make_table_sc_separated(pg2)
+    write.table(tab[,cols_to_return], file=paste0(outdir, 'sv_calls.txt'), quote = F, row.names = F, col.names = T)
+    write.table(tab, file=paste0(outdir, 'sv_calls_detailed.txt'), quote = F, row.names = F, col.names = T) 
   }
 }
 print('### ALL DONE. Happy discoveries. ###')

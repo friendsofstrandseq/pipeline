@@ -1,3 +1,55 @@
+# Whoeps, 9th March 2021
+
+#' @param pg_f
+#' @author Wolfram Hoeps
+#' @export 
+#' 
+calc_new_logllhs_singlecell <- function(pg_f){
+  
+  print('Re-calculating likelihoods after read count normalization. This will take up to several minutes.')
+  # With new 'expected number of reads', recalculate dispersions W and C. Step 1
+  
+  pg_f1 = pg_f %>% group_by(chrom, start, end, class, haplotype) %>% mutate(  disp_w_prealpha=make_disp_w_prealpha(Wcn, expected, nb_p),
+                                                                              disp_c_prealpha=make_disp_c_prealpha(Ccn, expected, nb_p))
+  # With new 'expected number of reads', recalculate dispersions W and C. Step 2
+  pg_f2 = pg_f1 %>% group_by(chrom, start, end, class, haplotype, Wcn, Ccn) %>% 
+    mutate(disp_c_real = make_disp_c_real(Ccn, Wcn, disp_w_prealpha, disp_c_prealpha, expected, nb_p),
+           disp_w_real = make_disp_w_real(Ccn, Wcn, disp_w_prealpha, disp_c_prealpha, expected, nb_p))
+  
+  # Round normalized count values 
+  pg_f3 = pg_f2 %>% mutate(W = as.integer(round(W)),
+                           C = as.integer(round(C)))
+  
+  # Now, calculate haplotype likelihoods
+  pg_f4 = pg_f3 %>% mutate(nb_hap_ll = exp(recalc_nb_hap_ll(W, C, disp_c_real, disp_w_real, nb_p)))
+  
+  
+  ### Process the nb_ref_llh ###
+  # append the 'reference' likelihood to each line. For faster computation of likelihood ratio (next command)
+  # Here a lazyer/more ugly part: We need to divide nb_hap_ll by reference so wg get logllh [i.e. logllh sv/ref].
+  pg_f4$nb_ref_ll = 0
+  for (cell in unique(pg_f4$cell)){
+    refs = pg_f4$nb_hap_ll[(pg_f4$cell==cell) & (pg_f4$haplotype=='1010')]
+    n_rep = dim(pg_f4[(pg_f4$cell==cell),])[1] / length(refs)
+    pg_f4[(pg_f4$cell==cell),]$nb_ref_ll = rep(refs, each=n_rep) 
+  }
+  
+  # log10 likelihood ratio vs reference
+  pg_f4$logllh = log10(pg_f4$nb_hap_ll / pg_f4$nb_ref_ll)
+  
+  if (sum(pg_f4$logllh == 'Inf') > 0){
+    pg_f4[pg_f4$logllh == 'Inf',]$logllh = 320
+  }
+  if (sum(pg_f4$logllh == 'Inf') > 0){
+    pg_f4[pg_f4$logllh == 'Inf',]$logllh = 320
+  }
+  
+
+  
+  return(pg_f4)
+  
+  }
+
 # Whoeps, July26th 2020
 
 #' Function to turn a probabilities tibble into pseudo bulk. For this, we will

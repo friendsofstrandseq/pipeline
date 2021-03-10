@@ -1,3 +1,49 @@
+# Make a table
+make_table_sc_separated <- function(pg_f){
+  library(reshape2)
+  library(reshape)
+    
+  n_sites = dim(unique(pg_f[,c('chrom','start','end')]))[1]
+  
+  haps_to_consider = c('1010','0101','1001','0110', '1000', '0010', '0000', '1110','1011', '1111')
+
+  # Cut down to interesting haplotypes
+  pgi2 = pg_f[pg_f$haplotype %in% haps_to_consider,]
+  
+  supertable = cast(pgi2, formula = cell + chrom + start +end + class + expected + W + C ~ haplo_name, value='logllh')
+
+  top_pred = rep('None', dim(supertable)[1])
+  top_score = rep(1, dim(supertable)[1])
+  second_pred = rep('None', dim(supertable)[1])
+  second_score = rep(1, dim(supertable)[1])
+  for (row in 1:dim(supertable)[1]){
+    #print(colnames(
+      relevant_cols = supertable[row,9:dim(supertable)[2]]
+      
+      # Top
+      best_names = colnames(relevant_cols[which(relevant_cols == max(relevant_cols))])
+      top_pred[row] = paste(best_names, collapse='/')
+      top_score[row] = as.numeric(relevant_cols[which(relevant_cols == max(relevant_cols))])[1]
+      # Second
+      remaining_cols = relevant_cols[which(relevant_cols != max(relevant_cols))]
+      second_best_names = colnames(remaining_cols[which(remaining_cols == max(remaining_cols))])
+      second_pred[row] = paste(second_best_names, collapse='/')
+      second_score[row] = as.numeric(remaining_cols[which(remaining_cols == max(remaining_cols))])[1]
+      
+  }
+  #supertable$top_score = top_score
+  #supertable$second_score =second_score
+  supertable$top_pred = top_pred
+  supertable$second_pred = second_pred
+  supertable$llr_1st_to_2nd =  round(log10((10**top_score) / (10**second_score)),5)
+  supertable$llr_1st_to_ref =  round(top_score,5)
+  
+  supertable$expected = round(supertable$expected, 5)
+
+  return(supertable)
+
+  }
+
 # Whoeps, 31th May 2020
 # Admittedly the name 'standalone' is not wisely chosen. Anyway these are functions needed for the 
 # three outputs of standalone. R

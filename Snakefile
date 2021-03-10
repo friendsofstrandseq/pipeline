@@ -1,6 +1,5 @@
 import math, csv, pathlib
 from collections import defaultdict
-
 configfile: "Snake.config.json"
 
 SAMPLE,BAM = glob_wildcards("bam/{sample}/selected/{bam}.bam")
@@ -24,7 +23,6 @@ for sample in SAMPLES:
 print("Detected {} samples:".format(len(SAMPLES)))
 for s in SAMPLES:
     print("  {}:\t{} cells\t {} selected cells".format(s, len(ALLBAMS_PER_SAMPLE[s]), len(BAM_PER_SAMPLE[s])))
-
 
 import os.path
 
@@ -130,18 +128,19 @@ if config["simulation_mode"]:
 elif config["manual_segments"]:
     rule all:
         input:
-             #expand("sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens}/{method}.txt",
-             #      sample = SAMPLES,
-             #      chrom = config["chromosomes"],
-             #      bin_size = [100000],
-             #      bpdens = BPDENS,
-             #      method = METHODS),
-             expand("sv_probabilities/{sample}/{bin_size}_fixed_norm.{bpdens}/probabilities.Rdata",
-                     sample = SAMPLES,
-                     #chrom = config["chromosomes"],
-                     bin_size = [100000],
-                     bpdens = BPDENS,
-                     method = METHODS),
+            #expand("sv_calls/{sample}/{bin_size}_fixed_norm.{bpdens}/{method}.txt",
+            #      sample = SAMPLES,
+            #      chrom = config["chromosomes"],
+            #      bin_size = [100000],
+            #      bpdens = BPDENS,
+            #      method = METHODS),
+            expand("sv_probabilities/{sample}/{bin_size}_fixed_norm.{bpdens}/probabilities.Rdata",
+                    sample = SAMPLES,
+                    #chrom = config["chromosomes"],
+                    bin_size = [100000],
+                    bpdens = BPDENS,
+                    method = METHODS),
+            expand('sv_calls/{sample}/sv_calls.txt', sample=SAMPLES)
             
 
 else:
@@ -170,6 +169,47 @@ else:
 
 
 
+#### In the end, run arbigent (aka regenotype.R) ###
+
+rule run_regenotypeR_samplewise_singlecell:
+    '''
+    Invoke regenotype.R for each sample, creating a sv_calls_bulk and associated
+    plots for each sample
+    '''
+    input:
+        probabilities_table =
+            "sv_probabilities/{sample}/100000_fixed_norm.selected_j0.1_s0.1/probabilities.Rdata",
+        msc =  "sv_calls/{sample}/msc.debug"
+    output:
+        sv_calls_bulk =  'sv_calls/{sample}/sv_calls.txt'
+    params:
+        outputfolder =  'sv_calls/{sample}/',
+        mode = 'single-cell'
+    shell:
+        """
+        Rscript utils/regenotyper/regenotype.R \
+                        -f ../../{input.probabilities_table} \
+                        -c ../../{input.msc} \
+                        -o ../../{params.outputfolder} \
+                        -m {params.mode}
+        """
+
+rule prepare_manual_segments_counts_debug:
+    '''
+    Take manual segments counts debugfile and prepare it in a way
+    that we can easily extract the information for n informative
+    bins per segment.
+    '''
+    input:
+        counts_file = "counts/{sample}/manual_segments_counts.txt.debug"
+    output:
+        msc = "sv_calls/{sample}/msc.debug"
+    shell:
+        """
+        awk '!seen[$1,$2,$3]++' {input.counts_file} > {output.msc}
+        """
+
+
 ##########################
 # Determine sex 
 ##########################
@@ -177,15 +217,6 @@ else:
 # So for this, we count the reads mapping to chrY. 
 # Any sample where (reads_Y / reads_X) > 20%, we call male. 
 
-#rule merge_sexdict:
-#    input:
-#        expand('output_biological_sex/persample/{sample}.csv', sample=SAMPLES)
-#    output:
-#        'output_biological_sex/sexdict.csv'
-#    shell:
-#        """
-#        echo "sample,sex" > {output} | cat {input} >> {output}
-#        """
 
 
 rule determine_sex_one_sample_part1:
