@@ -81,23 +81,37 @@ cut_cm_to_samples <- function(cm_f, used_samples_uniq_f, n_overjump, include_chi
 count_homhetrefetc <- function(cm_f, n_samples){
 
 
+  # special treatment for chrY, which is missing in female samples ###
+  cm_f[is.na(cm_f)] <- './.'
+
+  # There was a bug previously where valid_bins was 1011, and it was accidentally counted
+  # as a idup_h2. Here is a fix
+  samples_start_column = (dim(cm_f)[2] - n_samples) + 1
+  cm_f_gt_only = cm_f[,samples_start_column:dim(cm_f)[2]]
+
   # Homozygous Duplications are counted as a 'reference' event here. This is to avoid missing FP verdicts. 
-  cm_f$nref = rowSums2(cm_f=='0|0') + rowSums2(cm_f== '0|0_lowconf') + rowSums2(cm_f=='2020') + rowSums2(cm_f== '2020_lowconf')
+  cm_f$nref = rowSums2(cm_f_gt_only=='0|0') + rowSums2(cm_f_gt_only== '0|0_lowconf') + 
+              rowSums2(cm_f_gt_only=='2020') + rowSums2(cm_f_gt_only== '2020_lowconf') +
+              rowSums2(cm_f_gt_only=='0/0') + rowSums2(cm_f_gt_only== '0/0_lowconf')
 
   # Inversions
-  cm_f$nhom = rowSums2(cm_f=='1|1') + rowSums2(cm_f=='1|1_lowconf')
-  cm_f$nhet = rowSums2(cm_f=='1|0') + rowSums2(cm_f=='0|1') + 
-              rowSums2(cm_f=='1|0_lowconf') + rowSums2(cm_f=='0|1_lowconf')
+  cm_f$nhom = rowSums2(cm_f_gt_only=='1|1') + rowSums2(cm_f_gt_only=='1|1_lowconf') +
+              rowSums2(cm_f_gt_only=='1/1') + rowSums2(cm_f_gt_only=='1/1_lowconf')
+  cm_f$nhet = rowSums2(cm_f_gt_only=='1|0') + rowSums2(cm_f_gt_only=='0|1') + 
+              rowSums2(cm_f_gt_only=='1|0_lowconf') + rowSums2(cm_f_gt_only=='0|1_lowconf') +
+              rowSums2(cm_f_gt_only=='1/0') + rowSums2(cm_f_gt_only=='0/1') + 
+              rowSums2(cm_f_gt_only=='1/0_lowconf') + rowSums2(cm_f_gt_only=='0/1_lowconf')
 
   # Inverted duplications
-  cm_f$inv_dup_hom <- rowSums2(cm_f == "1111") + rowSums2(cm_f=='1111_lowconf') + 
-                      rowSums2(cm_f == "2200") + rowSums2(cm_f=='2200_lowconf')+
-                      rowSums2(cm_f == "0022") + rowSums2(cm_f=='0022_lowconf')
-  cm_f$inv_dup_het <- rowSums2(cm_f == "1011") + rowSums2(cm_f=='1011_lowconf') + 
-                      rowSums2(cm_f == "1110") + rowSums2(cm_f=='1110_lowconf')
+  cm_f$inv_dup_hom <- rowSums2(cm_f_gt_only == "1111") + rowSums2(cm_f_gt_only=='1111_lowconf') + 
+                      rowSums2(cm_f_gt_only == "2200") + rowSums2(cm_f_gt_only=='2200_lowconf')+
+                      rowSums2(cm_f_gt_only == "0022") + rowSums2(cm_f_gt_only=='0022_lowconf')
+  cm_f$inv_dup_het <- rowSums2(cm_f_gt_only == "1011") + rowSums2(cm_f_gt_only=='1011_lowconf') + 
+                      rowSums2(cm_f_gt_only == "1110") + rowSums2(cm_f_gt_only=='1110_lowconf')
+  cm_f$ninvdup <- cm_f$inv_dup_het + cm_f$inv_dup_hom
 
   # Noreads
-  cm_f$nnoreads = rowSums2(cm_f=='noreads')
+  cm_f$nnoreads = rowSums2(cm_f_gt_only=='noreads')
 
   cm_f$ncomplex = n_samples - (cm_f$nhom + cm_f$nhet + cm_f$nref + cm_f$nnoreads+ cm_f$inv_dup_hom + cm_f$inv_dup_het)
   return(cm_f)
@@ -106,26 +120,25 @@ count_homhetrefetc <- function(cm_f, n_samples){
 
 
 apply_filter_new <- function(cm_f, samples){
-  
+
+
   # Judgement day: filter. 
   # First some preparations
   cm_f$gt_events = cm_f$nhom + cm_f$nhet 
-  cm_f$n_inv_dups <- cm_f$inv_dup_het + cm_f$inv_dup_hom
   cols_to_add = c('lowconf','noreads','FP','alwayscomplex','MISO','Mendelfail', 'INVDUP')
   cm_f$verdict = 'UNK'
   
+
   bincutoff = 5 # For 'lowconf'
 
-  ### Intermezzo: special treatment for chrY, which is missing in female samples ###
-	cm_f[is.na(cm_f)] <- './.'
-
+  ### Intermezzo ###
+  
   # Samplewise 'valid samples'. For chrY, this number will be lower. 
   cm_f$n_valid_samples = 0
   for (i in 1:dim(cm_f)[1]){
-    print(i)
     cm_f[i,]$n_valid_samples = length(colnames(cm_f[i,samples])[cm_f[i,samples] != './.'])
   }
-
+  ### Intermezzo over ###
 
   # Apply verdicts based on sample GTs
   cm_f$lowconf = cm_f$valid_bins <= bincutoff
@@ -134,8 +147,9 @@ apply_filter_new <- function(cm_f, samples){
   #False Positive ("FP") if all samples are reference
   cm_f$FP = cm_f$nref == cm_f$n_valid_samples
 
-  # Alwayscomplex if all samples are complex 
-  cm_f$alwayscomplex= cm_f$ncomplex == cm_f$n_valid_samples
+  # Alwayscomplex if all samples are complex. Here we want to count inv_dup too, because 
+  # in the strandseq data inv_dups can be mistaken for bad mapability/complex regions.
+  cm_f$alwayscomplex = cm_f$ncomplex + cm_f$ninvdup == cm_f$n_valid_samples
 
   # Misorient: >= 80% of GTs are hom invs
   cm_f$MISO = cm_f$nhom >= 0.8*cm_f$n_valid_samples
@@ -144,7 +158,7 @@ apply_filter_new <- function(cm_f, samples){
   cm_f$Mendelfail = cm_f$mendelfails > 0
 
   # INVDUP: Any InvDup is observed
-  cm_f$INVDUP = cm_f$n_inv_dups > 0
+  cm_f$INVDUP = cm_f$ninvdup > 0
 
   cm_f_i = cm_f[,cols_to_add]
 
@@ -157,7 +171,6 @@ apply_filter_new <- function(cm_f, samples){
   # Clean up
   cm_f[,cols_to_add] = NULL
   cm_f$gt_events = NULL
-  cm_f$n_inv_dups = NULL
 
   return(cm_f)
 }
@@ -239,7 +252,6 @@ test_mendel <- function(ce, gt_parent1, gt_parent2, gt_child){
     if (c2){
       if (c3){
         valid = gt_child %in% ce[[paste(gt_parent1, gt_parent2)]]
-        #print(valid)
         return(valid)   
       }
     }
@@ -270,18 +282,23 @@ add_mendelfails <- function(cm_f){
   return(callmatrix)
 }
 
-make_invdups_human_readable <- function(cm_f){
+make_invdups_human_readable <- function(cm_f, n_samples){
+
+  # There was a bug previously where valid_bins was 1011, and it was accidentally counted
+  # as a idup_h2. Here is a fix
+  samples_start_column = (dim(cm_f)[2] - n_samples) + 1
+  cm_f_gt_only = cm_f[,samples_start_column:dim(cm_f)[2]]
 
   # Replacing complex label with simplified ones for inverted duplications
   codes_idup_hom = c("1111", '1111_lowconf', "2200", '2200_lowconf', "0022", '0022_lowconf')
   codes_idup_h1 = c('1110', '1110_lowconf')
   codes_idup_h2 = c('1011', '1011_lowconf')
 
-  # looping through rows because i simply do not know how to do it better
+  # looping through rows. There might be a more efficent way to solve this. 
   for (row in seq(1:dim(cm_f)[1])){
-    cm_f[row,][cm_f[row,] %in% codes_idup_hom] = 'idup_hom'
-    cm_f[row,][cm_f[row,] %in% codes_idup_h1] = 'idup_h1'
-    cm_f[row,][cm_f[row,] %in% codes_idup_h2] = 'idup_h2'
+    cm_f[row,samples_start_column:dim(cm_f)[2]][cm_f[row,samples_start_column:dim(cm_f)[2]] %in% codes_idup_hom] = 'idup_hom'
+    cm_f[row,samples_start_column:dim(cm_f)[2]][cm_f[row,samples_start_column:dim(cm_f)[2]] %in% codes_idup_h1] = 'idup_h1'
+    cm_f[row,samples_start_column:dim(cm_f)[2]][cm_f[row,samples_start_column:dim(cm_f)[2]] %in% codes_idup_h2] = 'idup_h2'
   }
   return(cm_f)
   

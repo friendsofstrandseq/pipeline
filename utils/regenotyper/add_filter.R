@@ -83,10 +83,10 @@ cm[,c('mendel1','mendel2','mendel3')] = NULL
 cm[] <- lapply(cm, as.character)
 
 # Rename inv_dup genotypes
-cm = make_invdups_human_readable(cm)
+cm = make_invdups_human_readable(cm, n_samples)
 
 # Sort columns
-cols = c(colnames(cm)[1:n_other_cols],'verdict', 'nref','nhet','nhom','ncomplex',samples)
+cols = c(colnames(cm)[1:n_other_cols],'verdict', 'nref','nhet','nhom','ninvdup','ncomplex',samples)
 cm_return = cm[,cols]
 
 # Save
