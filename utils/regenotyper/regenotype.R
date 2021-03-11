@@ -11,21 +11,19 @@
 #         - beeswarmplots
 #setwd('/home/hoeps/PhD/projects/huminvs/mosaicatcher/analysis/scripts/pipeline/utils/regenotyper')
 print('Initialising Regenotyper...')
+
 # supposed to suppress warnings, but not working
 oldw <- getOption("warn")
 options(warn = -1)
 
-setwd('/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper')
 
 #!/usr/bin/env Rscript
 suppressMessages(library("optparse"))
 suppressMessages(library("tidyr"))
 suppressMessages(library("stringr"))
-suppressMessages(source("probability_helpers.R"))
-suppressMessages(source("regenotype_helpers.R"))
-suppressMessages(source("bulk_helpers.R"))
 # Slighlty obscure package to handle numbers smaller than 10^-300 (LLHs can get small...)
 suppressMessages(library("Brobdingnag"))
+
 
 # INPUT INSTRUCTIONS
 option_list = list(
@@ -37,7 +35,9 @@ option_list = list(
               help="output dir name [default= %default]", metavar="character"),
   make_option(c("-c", "--cn_map"), type="character", default=NULL,
               help="average copy numbers and mapability for all segments in given bed file", metavar="character"),
-  make_option(c("-m", "--mode"), type="character", default=NULL,
+  make_option(c("-p", "--path_to_self"), type="character", default=NULL,
+              help="Path to regenotyper, if run from another directory.", metavar="character"),
+  make_option(c("-m", "--mode"), type="character", default='',
               help="Can be bulk or single-cell.", metavar="character")           
 #  make_option(c("-s", "--sample_sex"), type='character', default=NULL,
 #              help="Needed for proper normalization of read counts in gonosomes", metavar="character")
@@ -46,6 +46,23 @@ option_list = list(
 
 opt_parser = OptionParser(option_list=option_list);
 opt = parse_args(opt_parser);
+
+path_to_regenotyper = opt$path_to_self
+if (is.null(path_to_regenotyper) == FALSE){
+  print(paste0('Going to path ', path_to_regenotyper))
+  setwd(path_to_regenotyper)
+} else {
+  print(paste0('Staying in path', getwd()))
+}
+
+suppressMessages(source("probability_helpers.R"))
+suppressMessages(source("regenotype_helpers.R"))
+suppressMessages(source("bulk_helpers.R"))
+
+
+
+
+
 
 
 
@@ -357,8 +374,8 @@ for (group in unique(probs_raw$group)){
     tab = make_table_sc_separated(pg2)
     cols_to_return = c('cell','chrom','start','end','class','expected','W','C','top_pred','second_pred','llr_1st_to_2nd','llr_1st_to_ref')
     tab = make_table_sc_separated(pg2)
-    write.table(tab[,cols_to_return], file=paste0(outdir, 'sv_calls.txt'), quote = F, row.names = F, col.names = T)
-    write.table(tab, file=paste0(outdir, 'sv_calls_detailed.txt'), quote = F, row.names = F, col.names = T) 
+    write.table(tab[,cols_to_return], file=paste0(outdir_raw, 'sv_calls.txt'), quote = F, row.names = F, col.names = T)
+    write.table(tab, file=paste0(outdir_raw, 'sv_calls_detailed.txt'), quote = F, row.names = F, col.names = T) 
   }
 }
 print('### ALL DONE. Happy discoveries. ###')
