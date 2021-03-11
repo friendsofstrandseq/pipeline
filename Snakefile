@@ -191,6 +191,7 @@ rule run_regenotypeR_samplewise_singlecell:
                         -f ../../{input.probabilities_table} \
                         -c ../../{input.msc} \
                         -o ../../{params.outputfolder} \
+                        -p $(pwd)/utils/regenotyper \
                         -m {params.mode}
         """
 
@@ -572,7 +573,7 @@ if not config["simulation_mode"]:
             bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample][0]),
             sexinfo = "output_biological_sex/persample/{sample}.csv"
         output:
-            temp("log/exclude_file_{sample}.temp")
+            temp("log/texclude_file_{sample}.temp")
         log:
             "log/generate_exclude_file_1_{sample}.log"
         params:
@@ -584,7 +585,7 @@ if not config["simulation_mode"]:
 
     rule generate_exclude_file_2:
         input:
-            "log/exclude_file_{sample}.temp"
+            "log/texclude_file_{sample}.temp"
         output:
             "log/exclude_file_{sample}"
         params:
