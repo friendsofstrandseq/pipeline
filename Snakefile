@@ -201,12 +201,12 @@ rule prepare_manual_segments_counts_debug:
     bins per segment.
     '''
     input:
-        counts_file = "counts/{sample}/manual_segments_counts.txt.debug"
+        counts_file = "counts/{sample}/manual_segments_counts.txt"
     output:
         msc = "sv_calls/{sample}/msc.debug"
     shell:
         """
-        awk '!seen[$1,$2,$3]++' {input.counts_file} > {output.msc}
+        awk '!seen[$1,$2,$3]++' {input.counts_file}.debug > {output.msc}
         """
 
 
