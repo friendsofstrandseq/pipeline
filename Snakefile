@@ -26,7 +26,7 @@ for s in SAMPLES:
 
 import os.path
 
-samtools_command = "/g/easybuild/x86_64/CentOS/7/haswell/software/SAMtools/1.9-foss-2018b/bin/samtools"
+#samtools_command = "/g/easybuild/x86_64/CentOS/7/haswell/software/SAMtools/1.9-foss-2018b/bin/samtools"
 
 
 def tellme_biological_sex(wildcards):
@@ -140,7 +140,7 @@ elif config["manual_segments"]:
                     bin_size = [100000],
                     bpdens = BPDENS,
                     method = METHODS),
-            expand('sv_calls/{sample}/sv_calls.txt', sample=SAMPLES)
+            #expand('sv_calls/{sample}/sv_calls.txt', sample=SAMPLES)
             
 
 else:
@@ -222,7 +222,7 @@ rule prepare_manual_segments_counts_debug:
 rule determine_sex_one_sample_part1:
     input:
         bam = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam", bam = BAM_PER_SAMPLE[wc.sample])[0:50],
-        #bam_bai = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample])
+        bam_bai = lambda wc: expand("bam/{{sample}}/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample])[0:50]
     output:
         intermediate_files_X = ('output_biological_sex/{sample}_counts_X.txt'),
         intermediate_files_Y = ('output_biological_sex/{sample}_counts_Y.txt'),
@@ -649,13 +649,25 @@ if not config["simulation_mode"]:
             > {log} 2>&1
             """
 
-if config["manual_segments"]:            
+if config["manual_segments"]:  
+    rule create_hdf_file:
+            input:
+                mapping_track = config["arbigent_mapability_track"]
+            output:
+                config["arbigent_mapability_track_h5"]
+            log:
+                "log/create_hdf_file.log",
+            shell:
+                """
+                python3 utils/create_hdf.py -mc {input.mapping_track}
+                """                     
     rule watson_crick_counts:
             input:
                 bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
                 bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
                 bed = "manual_segmentation/{sample}.bed",
                 mapping = config["arbigent_mapability_track"]
+                mapping_h5= config["arbigent_mapability_track_h5"]
             output:
                 processing_counts="counts/{sample}/manual_segments_counts.txt"
                 #plotting_counts="counts/{sample}/manual_segments_counts_for_plots.txt",
@@ -681,7 +693,7 @@ rule extract_single_cell_counts:
 
 rule merge_blacklist_bins:
     input:
-        norm = "utils/normalization/HGSVC.{bin_size}.txt"
+        norm = "utils/normalization_hg38/HGSVC.{bin_size}.txt"
     output:
         merged = "normalizations/HGSVC.{bin_size}.merged.tsv"
     log:
@@ -1373,3 +1385,4 @@ rule aggregate_summary_statistics:
     shell:
         "(head -n1 {input.tsv[0]} && tail -n1 -q {input.tsv}) > {output}"
     
+
