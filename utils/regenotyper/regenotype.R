@@ -15,7 +15,7 @@ print('Initialising Regenotyper...')
 oldw <- getOption("warn")
 options(warn = -1)
 
-setwd('/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper')
+#setwd('/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper')
 
 #!/usr/bin/env Rscript
 suppressMessages(library("optparse"))
@@ -37,7 +37,7 @@ option_list = list(
               help="output dir name [default= %default]", metavar="character"),
   make_option(c("-c", "--cn_map"), type="character", default=NULL,
               help="average copy numbers and mapability for all segments in given bed file", metavar="character"),
-  make_option(c("-m", "--mode"), type="character", default=NULL,
+  make_option(c("-m", "--mode"), type="character", default="",
               help="Can be bulk or single-cell.", metavar="character")           
 #  make_option(c("-s", "--sample_sex"), type='character', default=NULL,
 #              help="Needed for proper normalization of read counts in gonosomes", metavar="character")
