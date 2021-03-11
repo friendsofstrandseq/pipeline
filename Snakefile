@@ -667,7 +667,7 @@ if config["manual_segments"]:
                 bam = lambda wc: expand("bam/" + wc.sample + "/selected/", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
                 bai = lambda wc: expand("bam/" + wc.sample + "/selected/{bam}.bam.bai", bam = BAM_PER_SAMPLE[wc.sample]) if wc.sample in BAM_PER_SAMPLE else "FOOBAR",
                 bed = "manual_segmentation/{sample}.bed",
-                mapping = config["arbigent_mapability_track"]
+                mapping = config["arbigent_mapability_track"],
                 mapping_h5= config["arbigent_mapability_track_h5"]
             output:
                 processing_counts="counts/{sample}/manual_segments_counts.txt"
