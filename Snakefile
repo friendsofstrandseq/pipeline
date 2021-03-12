@@ -1,6 +1,6 @@
 import math, csv, pathlib
 from collections import defaultdict
-configfile: "Snake.config.json"
+configfile: "Snake.config.chm13.json"
 
 SAMPLE,BAM = glob_wildcards("bam/{sample}/selected/{bam}.bam")
 SAMPLES = sorted(set(SAMPLE))
@@ -140,7 +140,7 @@ elif config["manual_segments"]:
                     bin_size = [100000],
                     bpdens = BPDENS,
                     method = METHODS),
-            expand('sv_calls/{sample}/sv_calls.txt', sample=SAMPLES)
+            #expand('sv_calls/{sample}/sv_calls.txt', sample=SAMPLES)
             
 
 else:
@@ -584,7 +584,8 @@ if not config["simulation_mode"]:
 
     rule generate_exclude_file_2:
         input:
-            "log/exclude_file_{sample}.temp"
+            "log/exclude_file_{sample}.temp",
+            sexinfo = "output_biological_sex/persample/{sample}.csv"
         output:
             "log/exclude_file_{sample}"
         params:
