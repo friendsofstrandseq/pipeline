@@ -11,6 +11,7 @@
     "bcftools"      : "bcftools",
 
     "arbigent_mapability_track" : "arbigent_norm/mapping_counts_allchrs_chm13.txt",
+    "arbigent_mapability_track_h5" : "arbigent_norm/mapping_counts_allchrs_chm13.h5",
 
     "snv_sites_to_genotype": "",
 

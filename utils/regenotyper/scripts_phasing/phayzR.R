@@ -6,6 +6,16 @@ library(ggplot2)
 library(optparse)
 library(data.table)
 
+make_nophasing_list <- function(phases_proc_rename_f, blacklist_f){
+  samples_no_phasing = phases_proc_rename_f
+  samples_no_phasing$diagnose = 'Sync_successful'
+  samples_no_phasing[(samples_no_phasing$pct_match == 100),]$diagnose = 'PAV_vcf_missing'
+  samples_no_phasing[(samples_no_phasing$pct_match == 0),]$diagnose = 'No_phasing_required'
+  samples_no_phasing[(samples_no_phasing$sample_chr %in% blacklist_f$sample_chr),]$diagnose = 'Blacklisted'
+  samples_no_phasing_report = samples_no_phasing[,c('sample','sseqsample','chr','pct_match', 'diagnose', 'flip')]
+return(samples_no_phasing_report)
+}
+
 beautify_phases <- function(phases_f){
   colnames(phases_f) = c('sample_chr_path', 'V2', 'V3',
                          'sample', 'V5', 'V6', 'pct_match',
@@ -14,7 +24,7 @@ beautify_phases <- function(phases_f){
   phases_f$chr = str_split_fixed(phases_f$sample_chr_path, '/', 10)[,3]
   phases_f$sample = str_split_fixed(phases_f$sample_chr_path, '/', 10)[,2]
   #phases_f$sample = str_split_fixed(phases_f$sample_long, '_', 10)[,2]
-  phases_f$flip = phases_f$pct_match < 25
+  phases_f$flip = phases_f$pct_match < 50
   
   # If there is nothing, please don't invert we have to examine first. 
   # Probably it's a X or Y chromsome
@@ -114,12 +124,12 @@ outdir = opt$outdir
 # blacklist_file = '~/scratch/invphasing/blacklist/sample_chr_blacklist.txt'
 # outdir = '~/Desktop/lab/lab2'
 
-#regenotyper_res = "~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/regenotyper_allsamples_bulk/all_sv_calls_unphased.txt"
-#phases_file = '~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper/phasing_res/similaritymerge.txt'
-#blacklist_file = '~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper/phasing_res/blacklist/sample_chr_blacklist.txt'
-#renaming_file = '~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper/phasing_res/input_naming/samplenames_sseq_to_sseq_short.txt'
-#outdir = '~/Desktop/labphase'
-  
+regenotyper_res = "~/s/g/korbel/hoeps/projects/huminvs/mosai_results/results_hg38_run4filter/regenotyper_allsamples_bulk/all_sv_calls_unphased.txt"
+phases_file = '~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper/phasing_res/similaritymerge.txt'
+blacklist_file = '~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper/blacklist/sample_chr_blacklist.txt'
+renaming_file = '~/s/g/korbel2/StrandSeq/Test_WH/pipeline_7may/pipeline/utils/regenotyper/input_naming/samplenames_sseq_to_sseq_short.txt'
+outdir = '~/Desktop/labphase'
+
 
 all = read.table(regenotyper_res, sep=' ', header=T, stringsAsFactors = F)
 allbackup = all 
@@ -138,14 +148,19 @@ samplecheck_df[samplecheck_df$sample %in% unique(phases_proc_rename$sseqsample),
 # blacklist
 blacklist = read.table(blacklist_file, header=T, sep='\t')
 
+
+
 # tie together sample and chr for easier df subsettig. 
 phases_proc_rename$sample_chr = paste0(phases_proc_rename$sseqsample, phases_proc_rename$chr)
 blacklist$sample_chr = paste0(blacklist$sseqsample, blacklist$chr)
 
-
 if ((dim(blacklist)[1]>0) && (any(phases_proc_rename$sample_chr %in% blacklist$sample_chr))){
   phases_proc_rename[phases_proc_rename$sample_chr %in% blacklist$sample_chr,]$flip = 'blacklisted'
 }
+
+# keep track of non-valid PAV samples.
+samples_no_phasing_report = make_nophasing_list(phases_proc_rename, blacklist)
+
 
 # all.txt can contain 'nomappability' entries. If that is the case, replace them with ./.
 if ('nomappability' %in% all$pred_hard){
@@ -155,8 +170,12 @@ if ('nomappability' %in% all$pred_hard){
 
 # Now the fuzzy part
 # loop over samples and chrs of phases_proc. Unseen samples are never considered here (!)
-for (sample in unique(phases_proc_rename$sseqsample)){
 
+# [W] Update 11th March: Actually, the blacklisted samples we also want to keep with their SSeq phasing. 
+# So we're not 'unphasing' them (commented out as you can see), and report later w.r.t what everything
+# is phased.  
+for (sample in unique(phases_proc_rename$sseqsample)){
+  
   for (chr in unique(phases_proc_rename$chr)){
     # Do GTs on this chr need to be flipped?
     # if needs to flip (flip = True)
@@ -166,20 +185,20 @@ for (sample in unique(phases_proc_rename$sseqsample)){
       all[all$sample==sample & all$chrom==chr,]$pred_soft = flip_gt(all[all$sample==sample & all$chrom==chr,]$pred_soft)
       all[all$sample==sample & all$chrom==chr,]$pred_nobias = flip_gt(all[all$sample==sample & all$chrom==chr,]$pred_nobias)
       all[all$sample==sample & all$chrom==chr,]$second_hard = flip_gt(all[all$sample==sample & all$chrom==chr,]$second_hard)
-    } else if (phases_proc_rename[(phases_proc_rename$sseqsample==sample) & (phases_proc_rename$chr==chr),]$flip == 'blacklisted'){
-      print(paste0('Blacklisted: ', sample, ' ', chr))
-      all[all$sample==sample & all$chrom==chr,]$pred_hard = unphase(all[all$sample==sample & all$chrom==chr,]$pred_hard)
-      all[all$sample==sample & all$chrom==chr,]$pred_soft = unphase(all[all$sample==sample & all$chrom==chr,]$pred_soft)
-      all[all$sample==sample & all$chrom==chr,]$pred_nobias = unphase(all[all$sample==sample & all$chrom==chr,]$pred_nobias)
-      all[all$sample==sample & all$chrom==chr,]$second_hard = unphase(all[all$sample==sample & all$chrom==chr,]$second_hard)
-    }
-    else {
-      #print(paste0('No Flipping ', sample, ' ', chr))
-    }
+    } #else if (phases_proc_rename[(phases_proc_rename$sseqsample==sample) & (phases_proc_rename$chr==chr),]$flip == 'blacklisted'){
+    #print(paste0('Blacklisted: ', sample, ' ', chr))
+    #all[all$sample==sample & all$chrom==chr,]$pred_hard = unphase(all[all$sample==sample & all$chrom==chr,]$pred_hard)
+    #all[all$sample==sample & all$chrom==chr,]$pred_soft = unphase(all[all$sample==sample & all$chrom==chr,]$pred_soft)
+    #all[all$sample==sample & all$chrom==chr,]$pred_nobias = unphase(all[all$sample==sample & all$chrom==chr,]$pred_nobias)
+    #all[all$sample==sample & all$chrom==chr,]$second_hard = unphase(all[all$sample==sample & all$chrom==chr,]$second_hard)
+  #}
+  else {
+    #print(paste0('No Flipping ', sample, ' ', chr))
   }
 }
+}
 
-# Additionally, unphase all calls in samples which do not appear in the phases file
+# Additionally, unphase all calls in samples which do not appear in the phases file. Ideally, this should be none. 
 unprocessed_samples = samplecheck_df[samplecheck_df$seen==F,]$sample
 all[(all$sample %in% unprocessed_samples),]$pred_hard = unphase(all[(all$sample %in% unprocessed_samples),]$pred_hard)
 all[(all$sample %in% unprocessed_samples),]$pred_soft = unphase(all[(all$sample %in% unprocessed_samples),]$pred_soft)
@@ -188,25 +207,48 @@ all[(all$sample %in% unprocessed_samples),]$second_hard = unphase(all[(all$sampl
 
 
 # make/write LOG
+samples_with_pav = samples_no_phasing_report[samples_no_phasing_report$diagnose == 'Sync_successful',]
+
 l1 = '## GT flipping log ##'
 l2 = paste0('Samples in regenotyper input: ', length(unique(allbackup$sample)))
 l3 = paste0('Samples in phasing table: ', length(unique(phases_proc$sample)))
+l3.1 = paste0('Samples without PAV: ', length(unique(samples_no_phasing_report[samples_no_phasing_report$diagnose=='PAV_vcf_missing',]$sample)))
+l3.2 = paste0('...which are: ')
+l3.21 = as.character(unique(samples_no_phasing_report[samples_no_phasing_report$diagnose=='PAV_vcf_missing',]$sample))
+l3.3 = paste0('Chrs blacklisted: ', dim(unique(samples_no_phasing_report[samples_no_phasing_report$diagnose=='Blacklisted',c('sample', 'chr')]))[1])
+l3.4 = paste0('...which are: ')
+l3.41 = as.character(unique(samples_no_phasing_report[samples_no_phasing_report$diagnose=='Blacklisted',c('sample', 'chr')]))
 l4 = paste0('Haplotype labels changed in ', sum(phases_proc$flip) ,' out of ', length(phases_proc$flip), ' chromosomes considered (', round(sum(phases_proc$flip)/length(phases_proc$flip)*100,0),'%)')
-log_all = paste(l1,l2,l3,l4,collapse='\n', sep='\n')
+l5 = paste0('If only considering samples with PAV:')
+l6 = paste0('Haplotype labels changed in ', sum(as.logical(samples_with_pav$flip)) ,' out of ', length(samples_with_pav$flip), ' chromosomes considered (', round(sum(as.logical(samples_with_pav$flip))/length(samples_with_pav$flip)*100,0),'%)')
+log_all = c(l1,l2,l3,l3.1,l3.2,l3.21,l3.3,l3.4,l3.41,l4,l5,l6,collapse='\n', sep='\n')
 
 outlogfile = file.path(outdir, 'phasing.log')
 writeLines(log_all, file(outlogfile))
+
+# save nophasing report
+outnophasereportfile = file.path(outdir, 'rephase_chr_log.txt')
+write.table(samples_no_phasing_report, outnophasereportfile, row.names=F, col.names=T, quote=F, sep='\t')
 
 # save samplecheck_df
 outsamplecheckfile = file.path(outdir, 'samplecheck')
 write.table(samplecheck_df, outsamplecheckfile, row.names=F, col.names=T, quote=F, sep='\t')
 
 # make/save a QC plot
-p = ggplot(phases_proc) + geom_point(aes(x=paste(sample,chr), y=pct_match, color=sample)) + 
-  theme(axis.text.x = element_text(angle = 90)) + 
-  labs(title = 'Percent identity phased snps: Strandseq vs PAV phasing', x= 'Sample and Chr', y= 'Identity')
+p = ggplot(samples_no_phasing_report[samples_no_phasing_report$diagnose != 'PAV_vcf_missing',]) + geom_point(aes(x=paste(sample,chr), y=pct_match, color=sample), size = 0.5) + 
+  #theme(axis.text.x = element_text(angle = 90)) + 
+  labs(title = 'Percent identity phased snps: Strandseq vs PAV phasing', x= 'Sample and Chr', y= 'Identity') +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        ) + 
+  geom_vline(aes(xintercept=0)) + 
+  geom_hline(aes(yintercept=0)) + 
+  geom_hline(aes(yintercept=100)) + 
+  geom_abline(aes(slope=0, intercept=10), size=0.05) + 
+  geom_abline(aes(slope=0, intercept=90), size=0.05)
+#p
 outplotfile = file.path(outdir, 'phasing_qc.pdf')
-ggsave(filename=outplotfile, plot=p, width=30, height=17, units='cm', device='pdf')
+ggsave(filename=outplotfile, plot=p, width=30, height=6.66, units='cm', device='pdf')
 
 # save phase_f
 outphasefile = file.path(outdir, 'phasing_clean.txt')
