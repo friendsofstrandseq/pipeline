@@ -1,6 +1,6 @@
 import math, csv, pathlib
 from collections import defaultdict
-configfile: "Snake.config.chm13.json"
+configfile: "Snake.config.json"
 
 SAMPLE,BAM = glob_wildcards("bam/{sample}/selected/{bam}.bam")
 SAMPLES = sorted(set(SAMPLE))
@@ -694,7 +694,7 @@ rule extract_single_cell_counts:
 
 rule merge_blacklist_bins:
     input:
-        norm = "utils/normalization_hg38/HGSVC.{bin_size}.txt"
+        norm = "utils/normalization_hg38_wmap/HGSVC.{bin_size}.txt"
     output:
         merged = "normalizations/HGSVC.{bin_size}.merged.tsv"
     log:

@@ -1,6 +1,6 @@
 # Hufsah Ashraf 
 # 2.3.2021
 
-New normalization lists for h38.
+New normalization lists for h38 (using bwa alignments).
 Blacklisted regions are kept as such ('None' regions) but for others ('good') there is no normalization being done (scalar =1). 
 The change is made as we are now using the normalization based on mappability of the regions.
